@@ -1,0 +1,185 @@
+# =============================================================================
+# AdGuard Home Configuration - Mullvad DNS
+# =============================================================================
+# Optimized for use with Mullvad VPN
+# /opt/AdGuardHome/AdGuardHome.yaml
+#
+# This config uses Mullvad's DNS-over-HTTPS servers which:
+# - Support ad blocking at DNS level
+# - Are encrypted (DoH)
+# - Don't log queries (Mullvad policy)
+# - Work inside the VPN tunnel for maximum privacy
+#
+# Run setup wizard first, then customize with these settings
+
+http:
+  pprof:
+    port: 6060
+    enabled: false
+  address: 0.0.0.0:3000
+  session_ttl: 720h
+
+users:
+  # Generated during setup wizard - this is just a placeholder
+  - name: admin
+    password: $2a$10$CHANGE_THIS_RUN_SETUP_WIZARD_FIRST
+
+auth_attempts: 5
+block_auth_min: 15
+
+dns:
+  bind_hosts:
+    - 0.0.0.0
+  port: 53
+
+  # ==========================================================================
+  # MULLVAD DNS-OVER-HTTPS SERVERS
+  # ==========================================================================
+  # These are Mullvad's official DoH servers
+  # Queries go through your VPN tunnel for full encryption
+  upstream_dns:
+    # Mullvad DoH with ad/tracker/malware blocking (RECOMMENDED)
+    - https://adblock.dns.mullvad.net/dns-query
+
+    # Alternative: Mullvad DoH without blocking (if using AdGuard lists only)
+    # - https://dns.mullvad.net/dns-query
+
+    # Alternative: Mullvad extended blocking (ads + trackers + adult content)
+    # - https://all.dns.mullvad.net/dns-query
+
+    # Alternative: Mullvad base blocking (trackers only)
+    # - https://base.dns.mullvad.net/dns-query
+
+  # ==========================================================================
+  # BOOTSTRAP DNS
+  # ==========================================================================
+  # Used ONLY to resolve DoH hostnames at startup
+  # After VPN connects, all DNS goes through the tunnel
+  bootstrap_dns:
+    - 9.9.9.9
+    - 1.1.1.1
+
+  # Parallel upstream queries for speed
+  upstream_mode: load_balance
+
+  # ==========================================================================
+  # PRIVACY & SECURITY
+  # ==========================================================================
+  # Enable DNSSEC validation
+  enable_dnssec: true
+
+  # Block IPv6 responses (prevents leaks - Mullvad IPv6 support varies by server)
+  aaaa_disabled: true
+
+  # Refuse ANY queries (often used for DNS amplification attacks)
+  refuse_any: true
+
+  # ==========================================================================
+  # CACHING
+  # ==========================================================================
+  cache_size: 4194304
+  cache_ttl_min: 300
+  cache_ttl_max: 86400
+  cache_optimistic: true
+
+  # Block common information disclosure queries
+  blocked_hosts:
+    - version.bind
+    - id.server
+    - hostname.bind
+
+  trusted_proxies:
+    - 127.0.0.0/8
+    - ::1/128
+
+  protection_enabled: true
+  blocking_mode: default
+  blocking_ipv4: ""
+  blocking_ipv6: ""
+
+# =============================================================================
+# FILTERING
+# =============================================================================
+filtering:
+  filtering_enabled: true
+  filters_update_interval: 24
+  parental_enabled: false
+  safebrowsing_enabled: false
+  safe_search:
+    enabled: false
+  # Return 0.0.0.0 for blocked domains
+  blocking_mode: null_ip
+
+# =============================================================================
+# FILTER LISTS
+# =============================================================================
+# These complement Mullvad's DNS-level blocking
+# Note: Using Mullvad's adblock DNS + these lists = comprehensive coverage
+filters:
+  # AdGuard DNS filter (comprehensive)
+  - enabled: true
+    url: https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt
+    name: AdGuard DNS filter
+    id: 1
+
+  # StevenBlack unified hosts
+  - enabled: true
+    url: https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
+    name: StevenBlack Unified Hosts
+    id: 2
+
+  # AdAway default blocklist
+  - enabled: true
+    url: https://adaway.org/hosts.txt
+    name: AdAway Default Blocklist
+    id: 3
+
+  # Peter Lowe's ad/tracking list
+  - enabled: true
+    url: https://pgl.yoyo.org/adservers/serverlist.php?hostformat=adblockplus
+    name: Peter Lowe's List
+    id: 4
+
+whitelist_filters: []
+user_rules: []
+
+# DHCP disabled - using OpenWrt DHCP server
+dhcp:
+  enabled: false
+
+clients:
+  runtime_sources:
+    whois: true
+    arp: true
+    rdns: true
+    dhcp: true
+    hosts: true
+  persistent: []
+
+log:
+  file: ""
+  max_backups: 0
+  max_size: 100
+  max_age: 3
+  compress: false
+  local_time: false
+  verbose: false
+
+querylog:
+  enabled: true
+  file_enabled: true
+  interval: 24h
+  size_memory: 1000
+  ignored: []
+
+statistics:
+  enabled: true
+  interval: 24h
+  ignored: []
+
+os:
+  group: ""
+  user: ""
+  rlimit_nofile: 0
+
+schema_version: 27
