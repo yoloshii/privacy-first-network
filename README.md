@@ -1,6 +1,6 @@
 # Privacy Router Stack
 
-**Whole-home VPN router with hardware kill switch** — Protect every device on your network with OpenWrt, WireGuard, and AmneziaWG. No apps required.
+**Whole-home VPN router with hardware kill switch** - Protect every device on your network with OpenWrt, WireGuard, and AmneziaWG. No apps required.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![OpenWrt](https://img.shields.io/badge/OpenWrt-23.05+-00B5E2.svg)](https://openwrt.org/)
@@ -14,12 +14,12 @@
 
 Turn a Raspberry Pi or mini PC into a VPN gateway that protects your entire home network:
 
-- ✅ **All devices protected** — Smart TVs, consoles, IoT, phones, laptops, guests
-- ✅ **Hardware kill switch** — Firewall-level failsafe, not software
-- ✅ **DPI bypass** — AmneziaWG defeats VPN blocking in restrictive networks
-- ✅ **DNS encryption** — AdGuard Home with DNS-over-HTTPS
-- ✅ **Auto-recovery** — Watchdog restarts tunnel on failure
-- ✅ **AI-deployable** — Full agent instructions included
+- ✅ **All devices protected** - Smart TVs, consoles, IoT, phones, laptops, guests
+- ✅ **Hardware kill switch** - Firewall-level failsafe, not software
+- ✅ **DPI bypass** - AmneziaWG defeats VPN blocking in restrictive networks
+- ✅ **DNS encryption** - AdGuard Home with DNS-over-HTTPS
+- ✅ **Auto-recovery** - Watchdog restarts tunnel on failure
+- ✅ **AI-deployable** - Full agent instructions included
 
 **Works with:** Any WireGuard-compatible VPN provider (Mullvad, IVPN, AirVPN, etc.)
 
@@ -31,10 +31,10 @@ Turn a Raspberry Pi or mini PC into a VPN gateway that protects your entire home
 
 **2025 is a turning point for online privacy:**
 
-- **UK Online Safety Bill** — Age verification now required for adult content. Third-party services verify your identity and track what you access.
-- **Australia Social Media Ban** — Age verification requirements taking effect December 2025. Platforms must verify user ages.
-- **US State Laws** — Multiple states passing age verification bills for various content categories.
-- **EU Digital Services Act** — Expanded platform accountability with data retention requirements.
+- **UK Online Safety Bill** - Age verification now required for adult content. Third-party services verify your identity and track what you access.
+- **Australia Social Media Ban** - Age verification requirements taking effect December 2025. Platforms must verify user ages.
+- **US State Laws** - Multiple states passing age verification bills for various content categories.
+- **EU Digital Services Act** - Expanded platform accountability with data retention requirements.
 
 **What this means for you:**
 - Your ISP can see every site you visit
@@ -42,7 +42,7 @@ Turn a Raspberry Pi or mini PC into a VPN gateway that protects your entire home
 - Data retention laws store your history for years
 - Per-device VPN apps don't protect smart TVs, consoles, or IoT devices
 
-**This stack solves all of these problems** — every device on your network routes through an encrypted tunnel. No browsing history for your ISP. No identity verification per-site. No apps to install or forget to enable.
+**This stack solves all of these problems** - every device on your network routes through an encrypted tunnel. No browsing history for your ISP. No identity verification per-site. No apps to install or forget to enable.
 
 ---
 
@@ -70,7 +70,7 @@ When you install a VPN app like Mullvad, NordVPN, or ProtonVPN on your phone or 
 
 ### The Network-Level Solution
 
-This privacy router sits between your modem and your existing router. **Every device** on your network automatically routes through the VPN — no apps, no configuration, no exceptions.
+This privacy router sits between your modem and your existing router. **Every device** on your network automatically routes through the VPN - no apps, no configuration, no exceptions.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -88,7 +88,7 @@ This privacy router sits between your modem and your existing router. **Every de
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-**Every device is protected:** Phones, tablets, laptops, smart TVs, gaming consoles, IoT devices, guests — everything.
+**Every device is protected:** Phones, tablets, laptops, smart TVs, gaming consoles, IoT devices, guests - everything.
 
 ---
 
@@ -113,7 +113,7 @@ Great question. Mullvad's QUIC tunnels and WireGuard apps are excellent for indi
 
 Here's something most people don't realize: **VPN app kill switches often fail**.
 
-When a VPN app crashes, loses connection, or during the moments between connection drops and reconnection, your traffic can leak to your ISP. App-based kill switches try to prevent this, but they operate at the application level — if the app itself crashes, the kill switch dies with it.
+When a VPN app crashes, loses connection, or during the moments between connection drops and reconnection, your traffic can leak to your ISP. App-based kill switches try to prevent this, but they operate at the application level - if the app itself crashes, the kill switch dies with it.
 
 **This stack implements a hardware-level kill switch:**
 
@@ -128,33 +128,33 @@ VPN Down (This stack):
   Device → Privacy Router → [No route exists] → Traffic blocked ✓
 ```
 
-The kill switch is implemented in the **firewall and routing table**, not in software. If the VPN tunnel goes down, there is literally no route for traffic to take — it's not blocked by a rule that might fail, it simply has nowhere to go.
+The kill switch is implemented in the **firewall and routing table**, not in software. If the VPN tunnel goes down, there is literally no route for traffic to take - it's not blocked by a rule that might fail, it simply has nowhere to go.
 
 ---
 
 ## Features
 
 ### Core Protection (Required)
-- **Network-wide VPN** — All devices protected automatically
-- **Hardware kill switch** — No traffic leaks, ever
-- **IPv6 leak prevention** — IPv6 completely disabled
+- **Network-wide VPN** - All devices protected automatically
+- **Hardware kill switch** - No traffic leaks, ever
+- **IPv6 leak prevention** - IPv6 completely disabled
 
 ### Reliability (Required)
-- **Automatic recovery** — Watchdog restarts tunnel on failure
-- **Boot persistence** — VPN starts automatically on power-up
-- **Connection monitoring** — Continuous health checks
+- **Automatic recovery** - Watchdog restarts tunnel on failure
+- **Boot persistence** - VPN starts automatically on power-up
+- **Connection monitoring** - Continuous health checks
 
 ### Optional Security Addons
-- **AdGuard Home** — DNS-over-HTTPS encryption, ad/tracker blocking
-- **BanIP** — Threat intelligence, malicious IP blocking
-- **HTTPS for LuCI** — Encrypted admin interface
+- **AdGuard Home** - DNS-over-HTTPS encryption, ad/tracker blocking
+- **BanIP** - Threat intelligence, malicious IP blocking
+- **HTTPS for LuCI** - Encrypted admin interface
 
 See [OPTIONAL_ADDONS.md](docs/OPTIONAL_ADDONS.md) for installation and configuration.
 
 ### Advanced (For Technical Users)
-- **DPI bypass** — AmneziaWG obfuscation defeats deep packet inspection
-- **Flexible deployment** — Dedicated hardware or VM
-- **Full observability** — Detailed logging and diagnostics
+- **DPI bypass** - AmneziaWG obfuscation defeats deep packet inspection
+- **Flexible deployment** - Dedicated hardware or VM
+- **Full observability** - Detailed logging and diagnostics
 
 ---
 
@@ -180,7 +180,7 @@ The kill switch is the most important security feature. Here's exactly how it wo
 └─────────────────────────────────────────────────────────┘
 ```
 
-Traffic from LAN can **only** go to the VPN zone. There is no forwarding rule from LAN to WAN. This isn't a "block" rule that could be bypassed — the route simply doesn't exist.
+Traffic from LAN can **only** go to the VPN zone. There is no forwarding rule from LAN to WAN. This isn't a "block" rule that could be bypassed - the route simply doesn't exist.
 
 ### Routing Table
 
@@ -221,7 +221,7 @@ These parameters make the traffic look like random noise rather than a VPN conne
 - Corporate networks block WireGuard
 - Standard WireGuard connections are unreliable
 
-If your VPN works fine with regular WireGuard, you can use standard WireGuard instead — the architecture works with both.
+If your VPN works fine with regular WireGuard, you can use standard WireGuard instead - the architecture works with both.
 
 ---
 
@@ -245,7 +245,7 @@ If your VPN works fine with regular WireGuard, you can use standard WireGuard in
 
 **Detailed instructions:** [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 
-> **Advanced users:** A Docker deployment option exists for users comfortable with container networking. See [Option C: Docker](docker/README.md). This is **not recommended** for most users — dedicated hardware or VM deployments provide better reliability and simpler troubleshooting.
+> **Advanced users:** A Docker deployment option exists for users comfortable with container networking. See [Option C: Docker](docker/README.md). This is **not recommended** for most users - dedicated hardware or VM deployments provide better reliability and simpler troubleshooting.
 
 ---
 
@@ -355,11 +355,11 @@ If you're in a region where VPNs are actively blocked or criminalized, see [High
 **[Mullvad VPN](https://mullvad.net)** is strongly recommended. This entire stack was developed, tested, and deployed with Mullvad.
 
 **Why Mullvad:**
-- **No customer records** — They keep nothing. No logs, no account data, no email.
-- **Anonymous payment** — Cash, cryptocurrency, bank transfer. No identity required.
-- **WireGuard native** — Fast, modern protocol with excellent performance.
-- **Proven track record** — Survived law enforcement audits with no data to hand over.
-- **Transparent** — Open source apps, regular security audits, clear policies.
+- **No customer records** - They keep nothing. No logs, no account data, no email.
+- **Anonymous payment** - Cash, cryptocurrency, bank transfer. No identity required.
+- **WireGuard native** - Fast, modern protocol with excellent performance.
+- **Proven track record** - Survived law enforcement audits with no data to hand over.
+- **Transparent** - Open source apps, regular security audits, clear policies.
 
 ### Alternative WireGuard Providers
 
@@ -371,11 +371,11 @@ If you prefer a different provider, any WireGuard-compatible VPN works with this
 | **[AirVPN](https://airvpn.org)** | No logs, port forwarding | Community AWG params available |
 | **[ProtonVPN](https://protonvpn.com)** | No logs (paid plans) | Free tier available |
 
-> **Note:** These providers use standard WireGuard. For basic privacy protection, this is sufficient. Use this stack with standard WireGuard configs — AmneziaWG obfuscation is optional.
+> **Note:** These providers use standard WireGuard. For basic privacy protection, this is sufficient. Use this stack with standard WireGuard configs - AmneziaWG obfuscation is optional.
 
 ### AmneziaWG Obfuscation (Optional)
 
-AmneziaWG adds traffic obfuscation to defeat deep packet inspection. **Most users don't need this** — it's for situations where:
+AmneziaWG adds traffic obfuscation to defeat deep packet inspection. **Most users don't need this** - it's for situations where:
 - Your ISP throttles or blocks VPN traffic
 - Network administrators block WireGuard
 - You need extra protection against traffic analysis
@@ -387,8 +387,8 @@ AmneziaWG adds traffic obfuscation to defeat deep packet inspection. **Most user
 | **Self-hosted Amnezia** | Run your own server | Maximum control |
 
 **Mullvad-specific example configs included:**
-- `openwrt/amneziawg/mullvad-awg0.conf.example` — Tunnel config with obfuscation
-- `adguard/mullvad-AdGuardHome.yaml.example` — DNS using Mullvad DoH
+- `openwrt/amneziawg/mullvad-awg0.conf.example` - Tunnel config with obfuscation
+- `adguard/mullvad-AdGuardHome.yaml.example` - DNS using Mullvad DoH
 
 ### High-Censorship Environments
 
@@ -466,19 +466,19 @@ For complex deployments or troubleshooting, give an AI coding agent access to th
 
 **Recommended:** This stack was developed, tested, and deployed using **Claude Opus 4.5** via [Claude Code](https://claude.com/claude-code). For best results, use a capable frontier model that can execute shell commands and understand network configuration:
 
-- **Claude Opus 4.5 / Sonnet 4.5** (Anthropic) — Used for this implementation
+- **Claude Opus 4.5 / Sonnet 4.5** (Anthropic) - Used for this implementation
 - **GPT-5.1** (OpenAI)
 - **Gemini 3** (Google)
 
 **What the agent can do:**
-- **Network audit** — Probe your current setup and identify requirements
-- **Guided configuration** — Generate configs with your specific IPs, keys, and preferences
-- **Automated troubleshooting** — Diagnose routing, firewall, and DNS issues in real-time
-- **Scripted deployment** — Execute installation steps with your approval
+- **Network audit** - Probe your current setup and identify requirements
+- **Guided configuration** - Generate configs with your specific IPs, keys, and preferences
+- **Automated troubleshooting** - Diagnose routing, firewall, and DNS issues in real-time
+- **Scripted deployment** - Execute installation steps with your approval
 
 **Quick start:**
 1. Clone this repo or give agent GitHub access
-2. Point agent to **[AGENTS.md](AGENTS.md)** — contains the full operational framework
+2. Point agent to **[AGENTS.md](AGENTS.md)** - contains the full operational framework
 3. Provide SSH credentials to your target device
 4. Let agent audit, plan, and guide you through deployment
 
@@ -517,16 +517,16 @@ Areas where help is appreciated:
 
 ## License
 
-MIT License — See [LICENSE](LICENSE) for details.
+MIT License - See [LICENSE](LICENSE) for details.
 
 ---
 
 ## Acknowledgments
 
-- [OpenWrt Project](https://openwrt.org/) — The foundation
-- [AmneziaWG](https://github.com/amnezia-vpn/amneziawg-tools) — DPI bypass
-- [AdGuard Home](https://adguard.com/adguard-home.html) — DNS filtering
-- [WireGuard](https://www.wireguard.com/) — Modern VPN protocol
+- [OpenWrt Project](https://openwrt.org/) - The foundation
+- [AmneziaWG](https://github.com/amnezia-vpn/amneziawg-tools) - DPI bypass
+- [AdGuard Home](https://adguard.com/adguard-home.html) - DNS filtering
+- [WireGuard](https://www.wireguard.com/) - Modern VPN protocol
 
 ---
 
@@ -539,7 +539,7 @@ A: Minimal impact. WireGuard is extremely efficient. Most users see <5% speed re
 A: Yes. LAN traffic stays local and doesn't go through the VPN.
 
 **Q: What if the privacy router fails?**
-A: Your network loses internet until it's fixed or bypassed. This is a feature, not a bug — it ensures no unprotected traffic leaks.
+A: Your network loses internet until it's fixed or bypassed. This is a feature, not a bug - it ensures no unprotected traffic leaks.
 
 **Q: Can I exclude certain devices from the VPN?**
 A: Yes, with additional configuration. You can create firewall rules to route specific IPs directly to WAN. See [CONFIGURATION.md](docs/CONFIGURATION.md).
@@ -551,13 +551,13 @@ A: IPv6 is disabled to prevent leaks. Most VPN providers don't properly support 
 A: With standard WireGuard, they can see VPN-like traffic. With AmneziaWG obfuscation, the traffic appears as random noise.
 
 **Q: How does this help with age verification privacy concerns?**
-A: A VPN routes your traffic through an encrypted tunnel, preventing your ISP from logging which sites you visit. This is a **privacy tool** — it stops third-party age verification services from correlating your browsing activity across sites or building behavioral profiles. Your actual age verification with platforms remains between you and that platform, not shared with ISPs or data brokers. For specific compliance questions, consult local regulations.
+A: A VPN routes your traffic through an encrypted tunnel, preventing your ISP from logging which sites you visit. This is a **privacy tool** - it stops third-party age verification services from correlating your browsing activity across sites or building behavioral profiles. Your actual age verification with platforms remains between you and that platform, not shared with ISPs or data brokers. For specific compliance questions, consult local regulations.
 
 **Q: Will this work after the Australia social media ban takes effect?**
 A: This stack protects your network traffic from ISP logging and provides privacy for all devices. The December 2025 Australian legislation primarily affects platform-side verification. A VPN ensures your ISP cannot see which sites you visit, regardless of platform-level requirements.
 
 **Q: Is this legal?**
-A: VPN use is legal in most Western countries including the UK, Australia, US, and EU. This stack is a privacy tool similar to HTTPS — it encrypts your traffic. Using a VPN to access content available in your region is generally legal. Always check your local laws.
+A: VPN use is legal in most Western countries including the UK, Australia, US, and EU. This stack is a privacy tool similar to HTTPS - it encrypts your traffic. Using a VPN to access content available in your region is generally legal. Always check your local laws.
 
 ---
 
