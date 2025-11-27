@@ -6,8 +6,6 @@
 [![OpenWrt](https://img.shields.io/badge/OpenWrt-23.05+-00B5E2.svg)](https://openwrt.org/)
 [![WireGuard](https://img.shields.io/badge/WireGuard-VPN-88171A.svg)](https://www.wireguard.com/)
 
-> **Keywords:** VPN router, whole-home VPN, network-wide VPN, WireGuard router, AmneziaWG, OpenWrt VPN, hardware kill switch, Mullvad router, privacy router, VPN gateway, Raspberry Pi VPN router, age verification privacy, online safety act VPN, social media privacy, ISP surveillance protection, browsing history protection, third-party tracking protection
-
 > **🤖 Using an AI coding agent?** Give it access to this entire repo and read [AGENTS.md](AGENTS.md) for guided deployment. Supports Claude, GPT, Gemini, and other frontier models.
 
 ---
