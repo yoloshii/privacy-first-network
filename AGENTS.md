@@ -46,24 +46,55 @@ Determine what the user will run OpenWrt on:
 
 ### 1.3 VPN Provider Details
 
-**Recommended: Mullvad VPN** — This stack was developed and tested with Mullvad. They keep no customer records, require no personal info, and accept anonymous payment.
+**Strongly Recommended: [Mullvad VPN](https://mullvad.net)**
 
-**Compatible providers (any WireGuard provider works):**
-| Provider | WireGuard | AmneziaWG Params | Notes |
-|----------|-----------|------------------|-------|
-| Mullvad | ✅ | User-supplied | Tested, recommended |
-| IVPN | ✅ | User-supplied | Good alternative |
-| AirVPN | ✅ | Community-discovered | Check AirVPN forums |
-| ProtonVPN | ✅ | User-supplied | Free tier available |
-| Self-hosted | ✅ | Server-generated | Amnezia VPN server |
+This stack was developed, tested, and deployed with Mullvad. They keep no customer records, require no personal info, and accept anonymous payment.
+
+**Provider Selection Guide:**
+
+| Scenario | Recommendation |
+|----------|----------------|
+| **Most users** | Mullvad with standard WireGuard |
+| **Need obfuscation** | Mullvad + AmneziaWG (use included params) |
+| **Alternative provider** | IVPN, AirVPN, or ProtonVPN with standard WireGuard |
+| **High-censorship region** | See escalation below |
+
+**Alternative WireGuard providers:**
+| Provider | Notes |
+|----------|-------|
+| IVPN | Good Mullvad alternative, no logs |
+| AirVPN | No logs, community AWG params available |
+| ProtonVPN | Free tier available, no logs on paid |
+
+### High-Censorship Environment Detection
+
+**Ask the user:** "Are VPNs actively blocked or criminalized in your region?"
+
+If YES, WireGuard/AmneziaWG may be insufficient. **Use deep research:**
+
+```
+Search: "VLESS Reality setup 2024"
+Search: "XRay censorship bypass current best practices"
+Search: "best obfuscation protocol [user's situation] 2024"
+```
+
+**Escalation protocols for high-censorship:**
+| Protocol | Description |
+|----------|-------------|
+| VLESS + Reality | Traffic appears as normal HTTPS |
+| XRay | Multiple obfuscation modes |
+| ShadowSocks | Encrypted proxy for censorship bypass |
+| Tor + Bridges | Pluggable transports |
+
+> **This stack focuses on WireGuard/AmneziaWG.** For VLESS/XRay, recommend [Amnezia VPN](https://amnezia.org) which supports multiple protocols, or research dedicated solutions.
 
 Obtain from user:
 
 ```
-□ VPN provider name
+□ VPN provider name (strongly recommend Mullvad)
 □ WireGuard config file (download from provider's account page)
 □ If using AmneziaWG obfuscation: parameters (Jc, Jmin, Jmax, S1, S2, H1-H4)
-  - Most providers use standard WireGuard; use example AWG params from this repo
+  - Use example AWG params from this repo (work with any WireGuard server)
   - For AirVPN: community has discovered working params (search forums)
   - For self-hosted: Amnezia server generates params automatically
 □ Assigned internal VPN IP (e.g., 10.66.x.x/32 for Mullvad)

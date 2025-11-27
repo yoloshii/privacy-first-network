@@ -321,33 +321,76 @@ Kill Switch:
 
 ## VPN Provider Compatibility
 
-### Standard WireGuard (All Providers)
+### Who This Stack Is For
 
-Any VPN provider offering WireGuard configs works with this stack:
+This stack is designed for users in regions where:
+- ISPs are required to log browsing history
+- Data retention laws mandate surveillance
+- Privacy-invasive legislation is expanding
+- VPN use is legal but increasingly necessary
 
-| Provider | WireGuard | Privacy | Notes |
-|----------|-----------|---------|-------|
-| **[Mullvad](https://mullvad.net)** | ✅ | No logs, anonymous payment | Recommended, tested |
-| **[IVPN](https://ivpn.net)** | ✅ | No logs, open source apps | Good alternative |
-| **[AirVPN](https://airvpn.org)** | ✅ | No logs, port forwarding | Community AWG params |
-| **[ProtonVPN](https://protonvpn.com)** | ✅ | No logs (paid plans) | Free tier available |
+If you're in a region where VPNs are actively blocked or criminalized, see [High-Censorship Environments](#high-censorship-environments) below.
 
-### AmneziaWG Obfuscation (DPI Bypass)
+### Recommended: Mullvad VPN
 
-For **AmneziaWG obfuscation** to bypass deep packet inspection, you need a provider or server that supports the AWG parameters (Jc, Jmin, Jmax, S1, S2, H1-H4):
+**[Mullvad VPN](https://mullvad.net)** is strongly recommended. This entire stack was developed, tested, and deployed with Mullvad.
 
-| Option | AWG Params | Notes |
-|--------|------------|-------|
-| **Mullvad + Custom Params** | User-supplied | Use included example values |
-| **AirVPN** | Community-discovered | See [AirVPN forums](https://airvpn.org/forums/) |
-| **Self-hosted Amnezia** | Server-generated | Run your own [Amnezia VPN server](https://amnezia.org) |
+**Why Mullvad:**
+- **No customer records** — They keep nothing. No logs, no account data, no email.
+- **Anonymous payment** — Cash, cryptocurrency, bank transfer. No identity required.
+- **WireGuard native** — Fast, modern protocol with excellent performance.
+- **Proven track record** — Survived law enforcement audits with no data to hand over.
+- **Transparent** — Open source apps, regular security audits, clear policies.
 
-> **Note:** Most commercial VPN providers use standard WireGuard. The included AWG obfuscation parameters work with any WireGuard server — they add client-side obfuscation. For maximum DPI resistance, both client and server should use matching AWG parameters.
+### Alternative WireGuard Providers
+
+If you prefer a different provider, any WireGuard-compatible VPN works with this stack:
+
+| Provider | Privacy | Notes |
+|----------|---------|-------|
+| **[IVPN](https://ivpn.net)** | No logs, open source | Good Mullvad alternative |
+| **[AirVPN](https://airvpn.org)** | No logs, port forwarding | Community AWG params available |
+| **[ProtonVPN](https://protonvpn.com)** | No logs (paid plans) | Free tier available |
+
+> **Note:** These providers use standard WireGuard. For basic privacy protection, this is sufficient. Use this stack with standard WireGuard configs — AmneziaWG obfuscation is optional.
+
+### AmneziaWG Obfuscation (Optional)
+
+AmneziaWG adds traffic obfuscation to defeat deep packet inspection. **Most users don't need this** — it's for situations where:
+- Your ISP throttles or blocks VPN traffic
+- Network administrators block WireGuard
+- You need extra protection against traffic analysis
+
+| Option | Setup | Best For |
+|--------|-------|----------|
+| **Mullvad + AWG params** | Use included example params | Most users needing obfuscation |
+| **AirVPN** | Community-discovered params | AirVPN subscribers |
+| **Self-hosted Amnezia** | Run your own server | Maximum control |
 
 **Mullvad-specific example configs included:**
 - `openwrt/amneziawg/mullvad-awg0.conf.example` — Tunnel config with obfuscation
 - `adguard/mullvad-AdGuardHome.yaml.example` — DNS using Mullvad DoH
 - `docker/mullvad.env.example` — Docker environment for Mullvad
+
+### High-Censorship Environments
+
+**If you're in a region where VPNs are actively blocked or criminalized**, WireGuard and AmneziaWG may not be sufficient. These environments require more advanced obfuscation:
+
+| Protocol | Description |
+|----------|-------------|
+| **VLESS + Reality** | Traffic appears as normal HTTPS to major websites |
+| **XRay** | Advanced proxy with multiple obfuscation modes |
+| **ShadowSocks** | Encrypted proxy designed for censorship bypass |
+| **Tor + Bridges** | Anonymity network with pluggable transports |
+
+**For agents:** If your user is in a high-censorship environment, use deep research to find current best practices:
+
+```
+Search: "VLESS Reality setup 2024" OR "XRay censorship bypass current"
+Search: "best VPN protocol [region] 2024" (research current effectiveness)
+```
+
+> **This stack focuses on WireGuard/AmneziaWG.** For VLESS, XRay, or other advanced protocols, users should research dedicated solutions or consider running [Amnezia VPN](https://amnezia.org) which supports multiple protocols including XRay.
 
 ---
 
