@@ -55,3 +55,7 @@ Thumbs.db
 tmp/
 temp/
 *.tmp
+
+# Local progress/context (never push)
+LOCAL_PROGRESS.md
+LOCAL_*.md
