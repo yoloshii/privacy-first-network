@@ -386,8 +386,8 @@ AmneziaWG adds traffic obfuscation to defeat deep packet inspection. **Most user
 **For agents:** If your user is in a high-censorship environment, use deep research to find current best practices:
 
 ```
-Search: "VLESS Reality setup 2024" OR "XRay censorship bypass current"
-Search: "best VPN protocol [region] 2024" (research current effectiveness)
+Search: "VLESS Reality setup 2025"
+Search: "XRay censorship bypass current best practices"
 ```
 
 > **This stack focuses on WireGuard/AmneziaWG.** For VLESS, XRay, or other advanced protocols, users should research dedicated solutions or consider running [Amnezia VPN](https://amnezia.org) which supports multiple protocols including XRay.
