@@ -155,7 +155,7 @@ See [OPTIONAL_ADDONS.md](docs/OPTIONAL_ADDONS.md) for installation and configura
 
 ### Advanced (For Technical Users)
 - **DPI bypass** — AmneziaWG obfuscation defeats deep packet inspection
-- **Flexible deployment** — Dedicated hardware, VM, or Docker
+- **Flexible deployment** — Dedicated hardware or VM
 - **Full observability** — Detailed logging and diagnostics
 
 ---
@@ -247,17 +247,7 @@ If your VPN works fine with regular WireGuard, you can use standard WireGuard in
 
 **Detailed instructions:** [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 
-### Docker Deployment
-
-For testing or simpler setups:
-
-```bash
-cp docker/.env.example docker/.env
-# Edit .env with your VPN credentials
-docker-compose up -d
-```
-
-**Note:** Docker deployment requires host networking and has limitations compared to dedicated hardware. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for details.
+> **Why not Docker?** This stack requires kernel-level kill switch guarantees, dual NIC management, and native routing — all of which are compromised by container networking. For containerized workloads that need VPN, consider a WireGuard sidecar pattern or [gluetun](https://github.com/qdm12/gluetun) instead.
 
 ---
 
@@ -400,7 +390,6 @@ AmneziaWG adds traffic obfuscation to defeat deep packet inspection. **Most user
 **Mullvad-specific example configs included:**
 - `openwrt/amneziawg/mullvad-awg0.conf.example` — Tunnel config with obfuscation
 - `adguard/mullvad-AdGuardHome.yaml.example` — DNS using Mullvad DoH
-- `docker/mullvad.env.example` — Docker environment for Mullvad
 
 ### High-Censorship Environments
 
@@ -524,7 +513,6 @@ Areas where help is appreciated:
 - Additional hardware guides
 - Localization
 - Performance optimizations
-- Docker improvements
 
 ---
 
