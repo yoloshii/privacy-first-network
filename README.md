@@ -23,7 +23,7 @@ Turn a Raspberry Pi or mini PC into a VPN gateway that protects your entire home
 
 **Works with:** Any WireGuard-compatible VPN provider (Mullvad, IVPN, AirVPN, etc.)
 
-**AmneziaWG obfuscation:** Mullvad + custom params, AirVPN, or self-hosted Amnezia server
+**AmneziaWG obfuscation:** Mullvad + custom params or self-hosted Amnezia server
 
 ---
 
@@ -367,8 +367,8 @@ If you prefer a different provider, any WireGuard-compatible VPN works with this
 | Provider | Privacy | Notes |
 |----------|---------|-------|
 | **[IVPN](https://ivpn.net)** | No logs, open source | Good Mullvad alternative |
-| **[AirVPN](https://airvpn.org)** | No logs, port forwarding | Community AWG params available |
-| **[ProtonVPN](https://protonvpn.com)** | No logs (paid plans) | Free tier available |
+| **[AirVPN](https://airvpn.org)** | No logs, port forwarding | Standard WireGuard only (no AmneziaWG) |
+| **[ProtonVPN](https://protonvpn.com)** | No logs (all tiers) | Free tier available |
 
 > **Note:** These providers use standard WireGuard. For basic privacy protection, this is sufficient. Use this stack with standard WireGuard configs - AmneziaWG obfuscation is optional.
 
@@ -382,7 +382,6 @@ AmneziaWG adds traffic obfuscation to defeat deep packet inspection. **Most user
 | Option | Setup | Best For |
 |--------|-------|----------|
 | **Mullvad + AWG params** | Use included example params | Most users needing obfuscation |
-| **AirVPN** | Community-discovered params | AirVPN subscribers |
 | **Self-hosted Amnezia** | Run your own server | Maximum control |
 
 **Mullvad-specific example configs included:**
