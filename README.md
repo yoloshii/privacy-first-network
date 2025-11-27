@@ -1,10 +1,29 @@
 # Privacy Router Stack
 
-**Network-wide VPN protection with automatic failsafe** — Route all your devices through an encrypted tunnel without installing apps on each one.
+**Whole-home VPN router with hardware kill switch** — Protect every device on your network with OpenWrt, WireGuard, and AmneziaWG. No apps required.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![OpenWrt](https://img.shields.io/badge/OpenWrt-23.05+-00B5E2.svg)](https://openwrt.org/)
+[![WireGuard](https://img.shields.io/badge/WireGuard-VPN-88171A.svg)](https://www.wireguard.com/)
 
-> **🤖 Using an AI agent?** Give it access to this entire repo and read [AGENTS.md](AGENTS.md) for guided deployment. The agent will audit your network, plan implementation, and walk you through setup step-by-step.
+> **Keywords:** VPN router, whole-home VPN, network-wide VPN, WireGuard router, AmneziaWG, OpenWrt VPN, hardware kill switch, Mullvad router, privacy router, VPN gateway, Raspberry Pi VPN router
+
+> **🤖 Using an AI coding agent?** Give it access to this entire repo and read [AGENTS.md](AGENTS.md) for guided deployment. Supports Claude, GPT, Gemini, and other frontier models.
+
+---
+
+## TL;DR
+
+Turn a Raspberry Pi or mini PC into a VPN gateway that protects your entire home network:
+
+- ✅ **All devices protected** — Smart TVs, consoles, IoT, phones, laptops, guests
+- ✅ **Hardware kill switch** — Firewall-level failsafe, not software
+- ✅ **DPI bypass** — AmneziaWG defeats VPN blocking in restrictive networks
+- ✅ **DNS encryption** — AdGuard Home with DNS-over-HTTPS
+- ✅ **Auto-recovery** — Watchdog restarts tunnel on failure
+- ✅ **AI-deployable** — Full agent instructions included
+
+**Works with:** Mullvad, IVPN, ProtonVPN, or any WireGuard-compatible provider
 
 ---
 
@@ -456,3 +475,9 @@ A: With standard WireGuard, they can see VPN-like traffic. With AmneziaWG obfusc
 ---
 
 *Protect your entire network. Set it and forget it.*
+
+---
+
+## Search Keywords
+
+`VPN router` · `whole home VPN` · `network-wide VPN` · `WireGuard router` · `AmneziaWG` · `OpenWrt VPN` · `hardware kill switch` · `Mullvad router` · `privacy router` · `VPN gateway` · `Raspberry Pi VPN` · `Pi5 VPN router` · `VPN firewall` · `VPN appliance` · `AdGuard Home router` · `DNS-over-HTTPS router` · `DPI bypass VPN` · `censorship bypass` · `VPN for smart TV` · `VPN for gaming console` · `IoT VPN protection` · `family VPN router` · `home network privacy`
