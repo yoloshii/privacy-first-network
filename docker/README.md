@@ -2,7 +2,9 @@
 
 > **Advanced Users Only** — This deployment method requires familiarity with Docker, macvlan networking, and iptables. For most users, [Option A (Dedicated Hardware)](../docs/DEPLOYMENT.md#option-a-dedicated-hardware) or [Option B (VM)](../docs/DEPLOYMENT.md#option-b-virtual-machine) are recommended.
 
-> **Status: Experimental** — This option is provided for experienced Docker users. Community testing and feedback welcome.
+> **Using an AI assistant?** If you're working with Claude, GPT, or another capable AI, give it access to this entire `docker/` folder. The AI can walk you through setup and fix issues even if Docker networking is new to you — just describe what you're trying to do and share any errors you see.
+
+> **Status: Experimental** — Community testing and feedback welcome.
 
 Deploy the privacy router stack using Docker with macvlan networking. This provides a container-based alternative to dedicated hardware (Option A) or VM deployment (Option B).
 
