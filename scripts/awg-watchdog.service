@@ -1,0 +1,48 @@
+# =============================================================================
+# AmneziaWG Watchdog Systemd Service
+# =============================================================================
+#
+# For non-OpenWrt Linux systems (Raspberry Pi, Debian, Ubuntu, etc.)
+#
+# Installation:
+#   1. Copy awg-watchdog.sh to /etc/awg-watchdog.sh
+#   2. chmod +x /etc/awg-watchdog.sh
+#   3. Edit /etc/awg-watchdog.sh with your VPN settings
+#   4. Copy this file to /etc/systemd/system/awg-watchdog.service
+#   5. systemctl daemon-reload
+#   6. systemctl enable awg-watchdog
+#   7. systemctl start awg-watchdog
+#
+# Commands:
+#   systemctl status awg-watchdog    # Check status
+#   journalctl -u awg-watchdog -f    # Follow logs
+#   systemctl restart awg-watchdog   # Restart
+#
+# =============================================================================
+
+[Unit]
+Description=AmneziaWG Watchdog - VPN Tunnel Monitor and Auto-Recovery
+Documentation=https://github.com/yoloshii/net-freedom-privacy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/etc/awg-watchdog.sh
+Restart=always
+RestartSec=10
+
+# Security hardening (optional but recommended)
+NoNewPrivileges=no
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/log /var/run /etc/amneziawg
+PrivateTmp=yes
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=awg-watchdog
+
+[Install]
+WantedBy=multi-user.target

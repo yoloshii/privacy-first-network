@@ -181,20 +181,66 @@ uci commit firewall
 Copy from `scripts/` directory:
 
 ```bash
-# Copy watchdog
+# Copy watchdog script
 cp scripts/awg-watchdog.sh /etc/awg-watchdog.sh
 chmod +x /etc/awg-watchdog.sh
 
-# Copy hotplug script
+# Edit watchdog with your values (REQUIRED):
+vi /etc/awg-watchdog.sh
+# Set: VPN_IP, ENDPOINT_IP (find these in your VPN provider config)
+
+# Copy hotplug script (auto-starts VPN on WAN up)
 mkdir -p /etc/hotplug.d/iface
-cp scripts/99-awg /etc/hotplug.d/iface/99-awg
+cp scripts/99-awg-hotplug /etc/hotplug.d/iface/99-awg
 chmod +x /etc/hotplug.d/iface/99-awg
 
-# Edit scripts to set your values:
-# - VPN_IP (your VPN internal IP)
-# - ENDPOINT_IP (your VPN server IP)
-# - WAN_GATEWAY (usually auto-detected)
+# Edit hotplug script with same values:
+vi /etc/hotplug.d/iface/99-awg
+# Set: VPN_IP, ENDPOINT_IP
 ```
+
+**For OpenWrt (init.d):**
+
+```bash
+# Install init script for boot persistence
+cp scripts/awg-watchdog.init /etc/init.d/awg-watchdog
+chmod +x /etc/init.d/awg-watchdog
+
+# Enable at boot
+/etc/init.d/awg-watchdog enable
+
+# Start now
+/etc/init.d/awg-watchdog start
+
+# Verify running
+ps | grep awg-watchdog
+```
+
+**For standard Linux (systemd):**
+
+```bash
+# Copy systemd service files
+sudo cp scripts/awg-watchdog.service /etc/systemd/system/
+sudo cp scripts/adguardhome.service /etc/systemd/system/
+
+# Reload systemd
+sudo systemctl daemon-reload
+
+# Enable and start services
+sudo systemctl enable awg-watchdog adguardhome
+sudo systemctl start awg-watchdog adguardhome
+
+# Verify running
+sudo systemctl status awg-watchdog
+sudo systemctl status adguardhome
+```
+
+**Configuration values you need:**
+| Variable | Description | Example (Mullvad) |
+|----------|-------------|-------------------|
+| `VPN_IP` | Your VPN internal IP (from provider config) | `10.64.123.45/32` |
+| `ENDPOINT_IP` | VPN server IP address | `185.213.154.68` |
+| `WAN_GATEWAY` | Usually "auto" (auto-detected) | `auto` or `192.168.1.1` |
 
 ### A7. Test VPN Manually
 
