@@ -38,9 +38,9 @@ Choose your deployment path:
 
 | Option | Difficulty | Best For |
 |--------|------------|----------|
-| [A. Dedicated Hardware](#option-a-dedicated-hardware) | Easy | **Recommended** — Most users, best reliability |
+| [A. Dedicated Hardware](#option-a-dedicated-hardware) | Easy | **Recommended** - Most users, best reliability |
 | [B. Virtual Machine](#option-b-virtual-machine) | Medium | Homelab, enterprise, existing hypervisors |
-| [C. Docker Container](#option-c-docker-container-optional) | Advanced | Optional — for users who prefer containers |
+| [C. Docker Container](#option-c-docker-container-optional) | Advanced | Optional - for users who prefer containers |
 
 > **Recommendation:** Options A and B are recommended. Option C (Docker) is entirely optional and provided only as a convenience for advanced users who prefer containers.
 
@@ -413,15 +413,15 @@ Ensure the AdGuard VM/container is on the LAN bridge so it can serve DNS to clie
 
 ### B3. Continue Setup
 
-Continue from [A4](#a4-configure-vpn-tunnel) onwards — the configuration is identical to dedicated hardware once OpenWrt is running.
+Continue from [A4](#a4-configure-vpn-tunnel) onwards - the configuration is identical to dedicated hardware once OpenWrt is running.
 
 ---
 
 ## Option C: Docker Container (Optional)
 
-> **This is entirely optional** — provided for users who prefer Docker. Options A and B are the recommended deployment methods. You do not need Docker to use this privacy router.
+> **This is entirely optional** - provided for users who prefer Docker. Options A and B are the recommended deployment methods. You do not need Docker to use this privacy router.
 
-> **For advanced users** familiar with macvlan networking, iptables, and container troubleshooting. If you're using an AI assistant (Claude, GPT, etc.), give it access to the `docker/` folder — the AI can guide you through setup even if Docker is unfamiliar.
+> **For advanced users** familiar with macvlan networking, iptables, and container troubleshooting. If you're using an AI assistant (Claude, GPT, etc.), give it access to the `docker/` folder - the AI can guide you through setup even if Docker is unfamiliar.
 
 For users with an existing Docker host who want a container-based deployment with macvlan networking.
 

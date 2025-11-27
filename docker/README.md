@@ -1,10 +1,10 @@
 # Privacy Router - Docker Deployment (Option C)
 
-> **This is entirely optional.** Most users should use [Option A (Dedicated Hardware)](../docs/DEPLOYMENT.md#option-a-dedicated-hardware) or [Option B (VM)](../docs/DEPLOYMENT.md#option-b-virtual-machine) instead. Docker is provided as a convenience for users who prefer containers — it is not required or recommended as the primary deployment method.
+> **This is entirely optional.** Most users should use [Option A (Dedicated Hardware)](../docs/DEPLOYMENT.md#option-a-dedicated-hardware) or [Option B (VM)](../docs/DEPLOYMENT.md#option-b-virtual-machine) instead. Docker is provided as a convenience for users who prefer containers - it is not required or recommended as the primary deployment method.
 
-> **For advanced users** familiar with Docker, macvlan networking, and iptables. If you're using an AI assistant (Claude, GPT, etc.), give it access to this `docker/` folder — the AI can guide you through setup even if Docker networking is new to you.
+> **For advanced users** familiar with Docker, macvlan networking, and iptables. If you're using an AI assistant (Claude, GPT, etc.), give it access to this `docker/` folder - the AI can guide you through setup even if Docker networking is new to you.
 
-> **Status: Experimental** — Community testing and feedback welcome.
+> **Status: Experimental** - Community testing and feedback welcome.
 
 Deploy the privacy router stack using Docker with macvlan networking. This provides a container-based alternative to dedicated hardware (Option A) or VM deployment (Option B).
 
