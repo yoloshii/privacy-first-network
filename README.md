@@ -245,7 +245,7 @@ If your VPN works fine with regular WireGuard, you can use standard WireGuard in
 
 **Detailed instructions:** [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 
-> **Why not Docker?** This stack requires kernel-level kill switch guarantees, dual NIC management, and native routing - all of which are compromised by container networking. For containerized workloads that need VPN, consider a WireGuard sidecar pattern or [gluetun](https://github.com/qdm12/gluetun) instead.
+> **Docker option coming soon:** A Docker deployment (Option C) is in testing for users who prefer containers. This is entirely optional - not required or recommended over Options A/B. If you're using an AI assistant, it can guide you through Docker setup even if container networking is unfamiliar.
 
 ---
 
