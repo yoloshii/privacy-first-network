@@ -46,47 +46,26 @@ Determine what the user will run OpenWrt on:
 
 ### 1.3 VPN Provider Details
 
-**Strongly Recommended: [Mullvad VPN](https://mullvad.net)**
-
-This stack was developed, tested, and deployed with Mullvad. They keep no customer records, require no personal info, and accept anonymous payment.
-
-**Provider Selection Guide:**
-
-| Scenario | Recommendation |
-|----------|----------------|
-| **Most users** | Mullvad with standard WireGuard |
-| **Need obfuscation** | Mullvad + AmneziaWG (use included params) |
-| **Alternative provider** | IVPN, AirVPN, or ProtonVPN with standard WireGuard |
-| **High-censorship region** | See escalation below |
-
-**Alternative WireGuard providers:**
-| Provider | Notes |
-|----------|-------|
-| IVPN | Good Mullvad alternative, no logs |
-| AirVPN | No logs, community AWG params available |
-| ProtonVPN | Free tier available, no logs on paid |
-
-### High-Censorship Environment Detection
-
-**Ask the user:** "Are VPNs actively blocked or criminalized in your region?"
-
-If YES, WireGuard/AmneziaWG may be insufficient. **Use deep research:**
+**Deep research the user's VPN provider** to determine:
+- Does it support WireGuard? (required)
+- Does it provide AmneziaWG obfuscation parameters? (optional, for DPI bypass)
+- What are the provider's DNS servers?
 
 ```
-Search: "VLESS Reality setup 2024"
-Search: "XRay censorship bypass current best practices"
-Search: "best obfuscation protocol [user's situation] 2024"
+Search: "[provider name] wireguard config linux"
+Search: "[provider name] amneziawg parameters"
 ```
 
-**Escalation protocols for high-censorship:**
-| Protocol | Description |
-|----------|-------------|
-| VLESS + Reality | Traffic appears as normal HTTPS |
-| XRay | Multiple obfuscation modes |
-| ShadowSocks | Encrypted proxy for censorship bypass |
-| Tor + Bridges | Pluggable transports |
+**If user hasn't chosen a provider yet:** Recommend Mullvad (see README for rationale).
 
-> **This stack focuses on WireGuard/AmneziaWG.** For VLESS/XRay, recommend [Amnezia VPN](https://amnezia.org) which supports multiple protocols, or research dedicated solutions.
+**If user is in a high-censorship region:** WireGuard/AmneziaWG may be insufficient. Deep research current obfuscation methods:
+
+```
+Search: "best VPN obfuscation protocol 2025"
+Search: "VLESS Reality XRay setup guide"
+```
+
+> This stack focuses on WireGuard/AmneziaWG. For advanced protocols (VLESS, XRay), research dedicated solutions.
 
 Obtain from user:
 
