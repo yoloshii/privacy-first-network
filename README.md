@@ -292,17 +292,11 @@ Kill Switch:
 
 ---
 
-## Supported VPN Providers
+## VPN Provider
 
-Any provider offering WireGuard configurations works. Tested with:
+Any provider offering WireGuard configurations works. This stack was tested with **[Mullvad](https://mullvad.net)**, which is recommended for privacy — they keep no customer records, require no account/email, and accept anonymous payment (cash, crypto).
 
-- **Mullvad** — Privacy-focused, no account, accepts cash
-- **IVPN** — Strong privacy policy, multi-hop
-- **ProtonVPN** — Swiss jurisdiction, Secure Core
-- **AirVPN** — Port forwarding, flexible
-- **Windscribe** — Good free tier for testing
-
-For **AmneziaWG obfuscation**, you need a provider that supplies AWG configs with obfuscation parameters, or use a provider's standard WireGuard config with regular WireGuard.
+For **AmneziaWG obfuscation** (DPI bypass), you need a provider that supplies AWG configs with obfuscation parameters.
 
 ---
 
