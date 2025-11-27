@@ -421,6 +421,8 @@ Continue from [A4](#a4-configure-vpn-tunnel) onwards — the configuration is id
 
 > **For experienced Docker users only.** This option requires familiarity with macvlan networking, iptables, and container troubleshooting. If you're new to Docker or networking, use Option A or B instead.
 
+> **AI-assisted setup:** If you're using an AI coding assistant (Claude, GPT, etc.), give it access to the `docker/` folder. The AI can guide you through setup even if Docker is unfamiliar territory.
+
 For users with an existing Docker host who want a container-based deployment with macvlan networking.
 
 ### C1. Overview
