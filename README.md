@@ -6,8 +6,6 @@
 [![OpenWrt](https://img.shields.io/badge/OpenWrt-23.05+-00B5E2.svg)](https://openwrt.org/)
 [![WireGuard](https://img.shields.io/badge/WireGuard-VPN-88171A.svg)](https://www.wireguard.com/)
 
-> **Keywords:** VPN router, whole-home VPN, network-wide VPN, WireGuard router, AmneziaWG, OpenWrt VPN, hardware kill switch, Mullvad router, privacy router, VPN gateway, Raspberry Pi VPN router, age verification privacy, online safety act VPN, social media privacy, ISP surveillance protection, browsing history protection, third-party tracking protection
-
 > **🤖 Using an AI coding agent?** Give it access to this entire repo and read [AGENTS.md](AGENTS.md) for guided deployment. Supports Claude, GPT, Gemini, and other frontier models.
 
 ---
@@ -247,7 +245,7 @@ If your VPN works fine with regular WireGuard, you can use standard WireGuard in
 
 **Detailed instructions:** [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 
-> **Why not Docker?** This stack requires kernel-level kill switch guarantees, dual NIC management, and native routing — all of which are compromised by container networking. For containerized workloads that need VPN, consider a WireGuard sidecar pattern or [gluetun](https://github.com/qdm12/gluetun) instead.
+> **Advanced users:** A Docker deployment option exists for users comfortable with container networking. See [Option C: Docker](docker/README.md). This is **not recommended** for most users — dedicated hardware or VM deployments provide better reliability and simpler troubleshooting.
 
 ---
 
@@ -258,6 +256,7 @@ If your VPN works fine with regular WireGuard, you can use standard WireGuard in
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, components, security model |
 | [HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) | Deep technical dive into every component |
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Step-by-step installation guide |
+| [docker/README.md](docker/README.md) | Docker deployment (advanced users) |
 | [CONFIGURATION.md](docs/CONFIGURATION.md) | Complete configuration reference |
 | [OPTIONAL_ADDONS.md](docs/OPTIONAL_ADDONS.md) | AdGuard Home, BanIP, and other security addons |
 | [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and solutions |

@@ -1,0 +1,137 @@
+# =============================================================================
+# AdGuard Home Configuration
+# =============================================================================
+# Optional: Place in config/ to pre-configure AdGuard Home
+# If not provided, AdGuard will run setup wizard on first access
+#
+# Access web UI at: http://<CONTAINER_LAN_IP>:3000
+# =============================================================================
+
+http:
+  pprof:
+    port: 6060
+    enabled: false
+  address: 0.0.0.0:3000
+  session_ttl: 720h
+
+users:
+  # Default admin user - CHANGE PASSWORD on first login!
+  - name: admin
+    password: $2a$10$Placeholder.ChangeThisOnFirstLogin
+
+dns:
+  bind_hosts:
+    - 0.0.0.0
+  port: 53
+
+  # Upstream DNS servers
+  # Using DNS-over-HTTPS for encrypted DNS queries
+  upstream_dns:
+    # Mullvad's ad-blocking DNS (if using Mullvad VPN)
+    - https://adblock.dns.mullvad.net/dns-query
+    # Alternatives:
+    # - https://dns.quad9.net/dns-query
+    # - https://cloudflare-dns.com/dns-query
+
+  # Bootstrap DNS (for resolving upstream hostnames)
+  # These are only used to resolve the DoH server hostnames
+  bootstrap_dns:
+    - 9.9.9.9
+    - 1.1.1.1
+
+  # Enable DNSSEC validation
+  enable_dnssec: true
+
+  # Cache settings
+  cache_size: 4194304
+  cache_ttl_min: 300
+  cache_ttl_max: 86400
+  cache_optimistic: true
+
+  # Query all upstreams in parallel (faster)
+  all_servers: false
+  fastest_addr: false
+
+  # Block IPv6 AAAA queries (prevents IPv6 DNS leaks)
+  aaaa_disabled: true
+
+  # Rate limiting
+  ratelimit: 0
+  ratelimit_whitelist: []
+
+  # Refuse ANY queries (security)
+  refuse_any: true
+
+filtering:
+  filtering_enabled: true
+  parental_enabled: false
+  safesearch_enabled: false
+  safebrowsing_enabled: false
+
+  # Block mode: null_ip returns 0.0.0.0 for blocked domains
+  blocking_mode: null_ip
+  blocked_response_ttl: 10
+
+  # Protection toggle
+  protection_enabled: true
+
+# Filter lists (ad/tracker blocking)
+filters:
+  - enabled: true
+    url: https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt
+    name: AdGuard DNS filter
+    id: 1
+
+  - enabled: true
+    url: https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
+    name: Steven Black's Unified Hosts
+    id: 2
+
+  - enabled: true
+    url: https://pgl.yoyo.org/adservers/serverlist.php?hostformat=adblockplus&showintro=1&mimetype=plaintext
+    name: Peter Lowe's List
+    id: 3
+
+# Whitelist (domains that should never be blocked)
+whitelist_filters: []
+
+# User-defined rules
+user_rules: []
+
+# Query log settings
+querylog:
+  enabled: true
+  file_enabled: true
+  interval: 24h
+  size_memory: 1000
+  ignored: []
+
+# Statistics
+statistics:
+  enabled: true
+  interval: 24h
+  ignored: []
+
+# DHCP (disabled - using router's DHCP)
+dhcp:
+  enabled: false
+
+# Client settings
+clients:
+  runtime_sources:
+    whois: true
+    arp: true
+    rdns: true
+    dhcp: true
+    hosts: true
+
+log:
+  file: ""
+  max_backups: 0
+  max_size: 100
+  max_age: 3
+  compress: false
+  local_time: false
+  verbose: false
+
+schema_version: 28
