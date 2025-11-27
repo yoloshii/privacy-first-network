@@ -1,0 +1,64 @@
+# OpenWrt DHCP Configuration
+# /etc/config/dhcp
+#
+# Pushes AdGuard Home as DNS server to all clients
+
+config dnsmasq
+	option domainneeded '1'
+	option boguspriv '1'
+	option filterwin2k '0'
+	option localise_queries '1'
+	option rebind_protection '1'
+	option rebind_localhost '1'
+	option local '/lan/'
+	option domain 'lan'
+	option expandhosts '1'
+	option nonegcache '0'
+	option cachesize '1000'
+	option authoritative '1'
+	option readethers '1'
+	option leasefile '/tmp/dhcp.leases'
+	option resolvfile '/tmp/resolv.conf.d/resolv.conf.auto'
+	option nonwildcard '1'
+	option localservice '1'
+	option ednspacket_max '1232'
+	# Disable AAAA record filtering (AdGuard handles this)
+	option filter_aaaa '0'
+	option filter_a '0'
+
+config dhcp 'lan'
+	option interface 'lan'
+	# DHCP range: .100 to .249
+	option start '100'
+	option limit '150'
+	option leasetime '12h'
+	option dhcpv4 'server'
+	# Push AdGuard Home as DNS server (Option 6)
+	# Replace with your AdGuard IP
+	list dhcp_option '6,192.168.1.5'
+	# Disable DHCPv6 (IPv6 leak prevention)
+	option dhcpv6 'disabled'
+	option ra 'disabled'
+
+config dhcp 'wan'
+	option interface 'wan'
+	option ignore '1'
+
+# =============================================================================
+# STATIC LEASES (Optional)
+# =============================================================================
+
+# Example: Reserve IP for a specific device
+#config host
+#	option name 'my-server'
+#	option mac '00:11:22:33:44:55'
+#	option ip '192.168.1.50'
+
+# =============================================================================
+# DNS OVERRIDES (Optional)
+# =============================================================================
+
+# Example: Local DNS entry
+#config domain
+#	option name 'nas.lan'
+#	option ip '192.168.1.50'

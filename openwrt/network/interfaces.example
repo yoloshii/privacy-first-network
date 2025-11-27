@@ -1,0 +1,43 @@
+# OpenWrt Network Configuration
+# /etc/config/network
+#
+# This is a template - adjust IPs and interface names for your setup
+
+config interface 'loopback'
+	option device 'lo'
+	option proto 'static'
+	option ipaddr '127.0.0.1'
+	option netmask '255.0.0.0'
+
+config globals 'globals'
+	option ula_prefix 'auto'
+
+# LAN Bridge Device
+config device
+	option name 'br-lan'
+	option type 'bridge'
+	# Add your LAN interface(s) here
+	list ports 'eth1'
+
+# LAN Interface - Your internal network
+config interface 'lan'
+	option device 'br-lan'
+	option proto 'static'
+	# Gateway IP - this will be the default gateway for all LAN devices
+	option ipaddr '192.168.1.1'
+	option netmask '255.255.255.0'
+	# DNS for the router itself (use VPN provider's DNS)
+	option dns '100.64.0.4'
+	# Disable IPv6 to prevent leaks
+	option ip6assign ''
+
+# WAN Interface - Connection to modem/ISP
+config interface 'wan'
+	# Your WAN interface name (check with: ip link)
+	option device 'eth0'
+	option proto 'dhcp'
+	# Disable IPv6 to prevent leaks
+	option ipv6 '0'
+	option peerdns '0'
+
+# Do NOT create a wan6 interface - IPv6 disabled for leak prevention

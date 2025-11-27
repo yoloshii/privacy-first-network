@@ -1,0 +1,237 @@
+# AdGuard Home Configuration
+# /opt/AdGuardHome/AdGuardHome.yaml
+#
+# This is a template - run initial setup wizard first, then customize
+
+http:
+  pprof:
+    port: 6060
+    enabled: false
+  address: 0.0.0.0:3000
+  session_ttl: 720h
+
+users:
+  # Generated during setup wizard
+  # Password is bcrypt hash
+  - name: admin
+    password: $2a$10$CHANGE_THIS_HASH
+
+auth_attempts: 5
+block_auth_min: 15
+
+dns:
+  # Listen on all interfaces
+  bind_hosts:
+    - 0.0.0.0
+  port: 53
+
+  # Anonymize client IPs in logs (privacy)
+  anonymize_client_ip: false
+
+  # Rate limiting
+  ratelimit: 0
+  ratelimit_subnet_len_ipv4: 24
+  ratelimit_subnet_len_ipv6: 56
+  ratelimit_whitelist: []
+
+  # Refuse queries to specified domains
+  refuse_any: true
+
+  # ==========================================================================
+  # UPSTREAM DNS SERVERS
+  # ==========================================================================
+  # Use DNS-over-HTTPS to your VPN provider for maximum privacy
+  # These queries go through the VPN tunnel
+  upstream_dns:
+    # Mullvad (with ad blocking)
+    - https://adblock.dns.mullvad.net/dns-query
+    # Alternative: Mullvad (no ad blocking, if using AdGuard filtering only)
+    # - https://dns.mullvad.net/dns-query
+    # Alternative: Cloudflare
+    # - https://cloudflare-dns.com/dns-query
+    # Alternative: Quad9 (malware blocking)
+    # - https://dns.quad9.net/dns-query
+
+  # ==========================================================================
+  # BOOTSTRAP DNS
+  # ==========================================================================
+  # Used to resolve upstream DNS hostnames at startup
+  # These are only used before VPN connects
+  bootstrap_dns:
+    - 9.9.9.9
+    - 1.1.1.1
+
+  # Fallback DNS (if upstream fails)
+  fallback_dns: []
+
+  # Use upstream servers in parallel for speed
+  all_servers: false
+  fastest_addr: false
+
+  # Allow parallel requests to upstreams
+  upstream_mode: load_balance
+
+  # ==========================================================================
+  # CACHING
+  # ==========================================================================
+  cache_size: 4194304
+  cache_ttl_min: 300
+  cache_ttl_max: 86400
+  cache_optimistic: true
+
+  # ==========================================================================
+  # SECURITY
+  # ==========================================================================
+  # Enable DNSSEC validation
+  enable_dnssec: true
+
+  # Block known-bad domains
+  blocked_hosts:
+    - version.bind
+    - id.server
+    - hostname.bind
+
+  # Trusted proxies (for X-Forwarded-For)
+  trusted_proxies:
+    - 127.0.0.0/8
+    - ::1/128
+
+  # ==========================================================================
+  # IPv6
+  # ==========================================================================
+  # Disable AAAA responses (prevents IPv6 leaks)
+  aaaa_disabled: true
+
+  # Handle DNS rebinding protection
+  protection_enabled: true
+  blocking_mode: default
+  blocking_ipv4: ""
+  blocking_ipv6: ""
+
+  # Block private reverse DNS
+  private_networks: []
+  use_private_ptr_resolvers: false
+  local_ptr_upstreams: []
+
+  # Serve plain DNS on all interfaces
+  serve_http3: false
+  use_http3_upstreams: false
+
+# =============================================================================
+# FILTERING
+# =============================================================================
+filtering:
+  # Master switch
+  filtering_enabled: true
+
+  # Update filters automatically
+  filters_update_interval: 24
+
+  # Parental controls (optional)
+  parental_enabled: false
+
+  # Safe browsing (optional)
+  safebrowsing_enabled: false
+
+  # Safe search (optional)
+  safe_search:
+    enabled: false
+
+  # How to respond to blocked queries
+  # null_ip: Return 0.0.0.0 (recommended)
+  # refused: Return REFUSED
+  # nxdomain: Return NXDOMAIN
+  # custom_ip: Return specified IP
+  blocking_mode: null_ip
+
+# =============================================================================
+# FILTER LISTS
+# =============================================================================
+filters:
+  # AdGuard DNS filter (default, comprehensive)
+  - enabled: true
+    url: https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt
+    name: AdGuard DNS filter
+    id: 1
+
+  # AdAway (mobile focused)
+  - enabled: true
+    url: https://adaway.org/hosts.txt
+    name: AdAway Default Blocklist
+    id: 2
+
+  # StevenBlack hosts (unified)
+  - enabled: true
+    url: https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
+    name: StevenBlack Unified Hosts
+    id: 3
+
+  # Peter Lowe's ad/tracking list
+  - enabled: true
+    url: https://pgl.yoyo.org/adservers/serverlist.php?hostformat=adblockplus
+    name: Peter Lowe's List
+    id: 4
+
+  # OISD (comprehensive, may be aggressive)
+  - enabled: false
+    url: https://small.oisd.nl
+    name: OISD Small
+    id: 5
+
+# Whitelist (domains that should never be blocked)
+whitelist_filters: []
+
+# User-defined rules
+user_rules: []
+
+# =============================================================================
+# DHCP (Disabled - using OpenWrt DHCP)
+# =============================================================================
+dhcp:
+  enabled: false
+
+# =============================================================================
+# CLIENTS (Optional client-specific settings)
+# =============================================================================
+clients:
+  runtime_sources:
+    whois: true
+    arp: true
+    rdns: true
+    dhcp: true
+    hosts: true
+  persistent: []
+
+# =============================================================================
+# LOGGING
+# =============================================================================
+log:
+  file: ""
+  max_backups: 0
+  max_size: 100
+  max_age: 3
+  compress: false
+  local_time: false
+  verbose: false
+
+# Query log
+querylog:
+  enabled: true
+  file_enabled: true
+  interval: 24h
+  size_memory: 1000
+  ignored: []
+
+# Statistics
+statistics:
+  enabled: true
+  interval: 24h
+  ignored: []
+
+# OS-specific
+os:
+  group: ""
+  user: ""
+  rlimit_nofile: 0
+
+schema_version: 27

@@ -1,0 +1,52 @@
+# AmneziaWG Configuration Template
+# /etc/amneziawg/awg0.conf
+#
+# Replace ALL placeholder values before use
+# chmod 600 /etc/amneziawg/awg0.conf
+
+[Interface]
+# Your private key (generate with: amneziawg genkey)
+PrivateKey = YOUR_PRIVATE_KEY_BASE64
+
+# =============================================================================
+# AmneziaWG Obfuscation Parameters
+# =============================================================================
+# These parameters MUST match your VPN server configuration exactly
+# Get these values from your VPN provider or server config
+
+# Jc: Number of junk packets during handshake (1-128)
+# Higher = more obfuscation, more overhead
+Jc = 4
+
+# Jmin/Jmax: Size range of junk packets in bytes (0-1280)
+Jmin = 40
+Jmax = 70
+
+# S1/S2: Init packet magic header values (0-2147483647)
+S1 = 0
+S2 = 0
+
+# H1-H4: Header obfuscation values (0-2147483647)
+H1 = 1
+H2 = 2
+H3 = 3
+H4 = 4
+
+[Peer]
+# VPN server's public key (from your provider)
+PublicKey = SERVER_PUBLIC_KEY_BASE64
+
+# Optional: Pre-shared key for post-quantum security
+# PresharedKey = PRESHARED_KEY_BASE64
+
+# Route all IPv4 and IPv6 through tunnel
+# For split tunneling, specify only certain ranges
+AllowedIPs = 0.0.0.0/0, ::/0
+
+# VPN server address and port
+# Use IP address, not hostname (avoids DNS dependency at startup)
+Endpoint = VPN_SERVER_IP:51820
+
+# Send keepalive every 25 seconds
+# Required for NAT traversal, prevents connection timeout
+PersistentKeepalive = 25

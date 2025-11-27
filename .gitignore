@@ -1,0 +1,57 @@
+# =============================================================================
+# Privacy Router Stack - Git Ignore
+# =============================================================================
+
+# Environment files with secrets
+.env
+*.env.local
+*.env.production
+
+# Actual configuration files (use .example templates)
+*.conf
+!*.conf.example
+*.yaml
+!*.yaml.example
+!docker-compose.yml
+
+# WireGuard/AmneziaWG keys
+privatekey
+publickey
+presharedkey
+*.key
+
+# AdGuard Home runtime
+adguard/work/
+adguard/conf/
+!adguard/*.example
+
+# Docker runtime
+wireguard/config/
+docker/wireguard/
+docker/adguard/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*
+
+# Backups
+*.bak
+*.backup
+*.old
+
+# Temporary files
+tmp/
+temp/
+*.tmp

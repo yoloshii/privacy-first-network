@@ -1,0 +1,118 @@
+# OpenWrt Firewall Configuration
+# /etc/config/firewall
+#
+# Kill switch architecture: LAN -> VPN only, NO LAN -> WAN
+
+config defaults
+	option syn_flood '1'
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+	# Drop invalid packets
+	option drop_invalid '1'
+
+# =============================================================================
+# ZONES
+# =============================================================================
+
+# LAN Zone - Internal network
+# Accepts all traffic (management access)
+config zone
+	option name 'lan'
+	option network 'lan'
+	option input 'ACCEPT'
+	option output 'ACCEPT'
+	option forward 'ACCEPT'
+
+# WAN Zone - ISP connection
+# Rejects input, allows output (for VPN endpoint only)
+config zone
+	option name 'wan'
+	list network 'wan'
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+	option masq '1'
+	option mtu_fix '1'
+
+# VPN Zone - AmneziaWG tunnel
+# This is where all internet-bound traffic goes
+config zone
+	option name 'vpn'
+	option device 'awg0'
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+	option masq '1'
+	option mtu_fix '1'
+
+# =============================================================================
+# FORWARDING RULES (Kill Switch Core)
+# =============================================================================
+
+# LAN to VPN - ALLOWED
+# This is the ONLY path to the internet
+config forwarding
+	option src 'lan'
+	option dest 'vpn'
+
+# IMPORTANT: No lan->wan forwarding rule exists
+# This is the kill switch - if VPN is down, traffic has nowhere to go
+
+# =============================================================================
+# STANDARD RULES
+# =============================================================================
+
+# Allow DHCP renewal from WAN (for router to get IP from modem)
+config rule
+	option name 'Allow-DHCP-Renew'
+	option src 'wan'
+	option proto 'udp'
+	option dest_port '68'
+	option target 'ACCEPT'
+	option family 'ipv4'
+
+# Allow ping to WAN interface
+config rule
+	option name 'Allow-Ping'
+	option src 'wan'
+	option proto 'icmp'
+	option icmp_type 'echo-request'
+	option family 'ipv4'
+	option target 'ACCEPT'
+
+# Allow IGMP for multicast (optional)
+config rule
+	option name 'Allow-IGMP'
+	option src 'wan'
+	option proto 'igmp'
+	option family 'ipv4'
+	option target 'ACCEPT'
+
+# =============================================================================
+# OPTIONAL: Block external DNS (prevent DNS bypass)
+# =============================================================================
+
+# Uncomment to force all DNS through AdGuard
+# This blocks devices that ignore DHCP DNS settings
+
+#config rule
+#	option name 'Block-External-DNS-TCP'
+#	option src 'lan'
+#	option dest 'vpn'
+#	option dest_port '53'
+#	option proto 'tcp'
+#	option target 'REJECT'
+#	option family 'ipv4'
+#	# Exception for AdGuard IP
+#	option src_ip '!192.168.1.5'
+
+#config rule
+#	option name 'Block-External-DNS-UDP'
+#	option src 'lan'
+#	option dest 'vpn'
+#	option dest_port '53'
+#	option proto 'udp'
+#	option target 'REJECT'
+#	option family 'ipv4'
+#	option src_ip '!192.168.1.5'
