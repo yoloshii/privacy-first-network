@@ -460,7 +460,7 @@ Search: "XRay traffic obfuscation setup 2025"
 
 ## AI-Assisted Setup
 
-For complex deployments or troubleshooting, give an AI coding agent access to this **entire repository** plus SSH access to your router (if you don't know ask the agent to guide you).
+For complex deployments or troubleshooting, give an AI coding agent access to this **entire repository** plus SSH access to your router (if you don't know how, ask the agent to guide you).
 
 **Recommended:** This stack was developed, tested, and deployed using **Claude Opus 4.5** via [Claude Code](https://claude.com/claude-code). For best results, use a capable frontier model that can execute shell commands and understand network configuration:
 
