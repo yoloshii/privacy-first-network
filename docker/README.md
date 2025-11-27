@@ -1,8 +1,8 @@
 # Privacy Router - Docker Deployment (Option C)
 
-> **Advanced Users Only** — This deployment method requires familiarity with Docker, macvlan networking, and iptables. For most users, [Option A (Dedicated Hardware)](../docs/DEPLOYMENT.md#option-a-dedicated-hardware) or [Option B (VM)](../docs/DEPLOYMENT.md#option-b-virtual-machine) are recommended.
+> **This is entirely optional.** Most users should use [Option A (Dedicated Hardware)](../docs/DEPLOYMENT.md#option-a-dedicated-hardware) or [Option B (VM)](../docs/DEPLOYMENT.md#option-b-virtual-machine) instead. Docker is provided as a convenience for users who prefer containers — it is not required or recommended as the primary deployment method.
 
-> **Using an AI assistant?** If you're working with Claude, GPT, or another capable AI, give it access to this entire `docker/` folder. The AI can walk you through setup and fix issues even if Docker networking is new to you — just describe what you're trying to do and share any errors you see.
+> **For advanced users** familiar with Docker, macvlan networking, and iptables. If you're using an AI assistant (Claude, GPT, etc.), give it access to this `docker/` folder — the AI can guide you through setup even if Docker networking is new to you.
 
 > **Status: Experimental** — Community testing and feedback welcome.
 

@@ -40,9 +40,9 @@ Choose your deployment path:
 |--------|------------|----------|
 | [A. Dedicated Hardware](#option-a-dedicated-hardware) | Easy | **Recommended** — Most users, best reliability |
 | [B. Virtual Machine](#option-b-virtual-machine) | Medium | Homelab, enterprise, existing hypervisors |
-| [C. Docker Container](#option-c-docker-container) | Advanced | Experienced Docker users only |
+| [C. Docker Container](#option-c-docker-container-optional) | Advanced | Optional — for users who prefer containers |
 
-> **Recommendation:** Options A and B are recommended for most users. Option C (Docker) requires familiarity with container networking, macvlan, and iptables troubleshooting.
+> **Recommendation:** Options A and B are recommended. Option C (Docker) is entirely optional and provided only as a convenience for advanced users who prefer containers.
 
 ---
 
@@ -417,11 +417,11 @@ Continue from [A4](#a4-configure-vpn-tunnel) onwards — the configuration is id
 
 ---
 
-## Option C: Docker Container (Advanced)
+## Option C: Docker Container (Optional)
 
-> **For experienced Docker users only.** This option requires familiarity with macvlan networking, iptables, and container troubleshooting. If you're new to Docker or networking, use Option A or B instead.
+> **This is entirely optional** — provided for users who prefer Docker. Options A and B are the recommended deployment methods. You do not need Docker to use this privacy router.
 
-> **AI-assisted setup:** If you're using an AI coding assistant (Claude, GPT, etc.), give it access to the `docker/` folder. The AI can guide you through setup even if Docker is unfamiliar territory.
+> **For advanced users** familiar with macvlan networking, iptables, and container troubleshooting. If you're using an AI assistant (Claude, GPT, etc.), give it access to the `docker/` folder — the AI can guide you through setup even if Docker is unfamiliar.
 
 For users with an existing Docker host who want a container-based deployment with macvlan networking.
 
