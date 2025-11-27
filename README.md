@@ -6,7 +6,7 @@
 [![OpenWrt](https://img.shields.io/badge/OpenWrt-23.05+-00B5E2.svg)](https://openwrt.org/)
 [![WireGuard](https://img.shields.io/badge/WireGuard-VPN-88171A.svg)](https://www.wireguard.com/)
 
-> **Keywords:** VPN router, whole-home VPN, network-wide VPN, WireGuard router, AmneziaWG, OpenWrt VPN, hardware kill switch, Mullvad router, privacy router, VPN gateway, Raspberry Pi VPN router
+> **Keywords:** VPN router, whole-home VPN, network-wide VPN, WireGuard router, AmneziaWG, OpenWrt VPN, hardware kill switch, Mullvad router, privacy router, VPN gateway, Raspberry Pi VPN router, age verification privacy, online safety act VPN, social media privacy, ISP surveillance protection, browsing history protection, third-party tracking protection
 
 > **🤖 Using an AI coding agent?** Give it access to this entire repo and read [AGENTS.md](AGENTS.md) for guided deployment. Supports Claude, GPT, Gemini, and other frontier models.
 
@@ -26,6 +26,25 @@ Turn a Raspberry Pi or mini PC into a VPN gateway that protects your entire home
 **Works with:** Any WireGuard-compatible VPN provider (Mullvad, IVPN, AirVPN, etc.)
 
 **AmneziaWG obfuscation:** Mullvad + custom params, AirVPN, or self-hosted Amnezia server
+
+---
+
+## Why Now? The Privacy Landscape Is Changing
+
+**2025 is a turning point for online privacy:**
+
+- **UK Online Safety Bill** — Age verification now required for adult content. Third-party services verify your identity and track what you access.
+- **Australia Social Media Ban** — Age verification requirements taking effect December 2025. Platforms must verify user ages.
+- **US State Laws** — Multiple states passing age verification bills for various content categories.
+- **EU Digital Services Act** — Expanded platform accountability with data retention requirements.
+
+**What this means for you:**
+- Your ISP can see every site you visit
+- Age verification services build profiles of your browsing
+- Data retention laws store your history for years
+- Per-device VPN apps don't protect smart TVs, consoles, or IoT devices
+
+**This stack solves all of these problems** — every device on your network routes through an encrypted tunnel. No browsing history for your ISP. No identity verification per-site. No apps to install or forget to enable.
 
 ---
 
@@ -323,11 +342,22 @@ Kill Switch:
 
 ### Who This Stack Is For
 
-This stack is designed for users in regions where:
-- ISPs are required to log browsing history
-- Data retention laws mandate surveillance
-- Privacy-invasive legislation is expanding
-- VPN use is legal but increasingly necessary
+This stack is designed for users in regions where privacy legislation is tightening:
+
+| Region | Legislation | Impact |
+|--------|-------------|--------|
+| **UK** | Online Safety Bill (2025) | Age verification required for adult content; third-party ID services track access |
+| **Australia** | Social Media Age Verification (Dec 2025) | Under-16 ban with verification requirements |
+| **EU** | Digital Services Act | Platform accountability with data retention |
+| **US States** | Various age verification bills | State-level ID requirements expanding |
+
+**Common privacy concerns this stack addresses:**
+- ISPs required to log browsing history
+- Third-party age verification services collecting identity data
+- Data retention laws mandating surveillance
+- Privacy-invasive legislation expanding
+
+A network-level VPN means no per-device verification, no browsing history for your ISP, and no identity disclosure to third-party verification services.
 
 If you're in a region where VPNs are actively blocked or criminalized, see [High-Censorship Environments](#high-censorship-environments) below.
 
@@ -380,14 +410,14 @@ AmneziaWG adds traffic obfuscation to defeat deep packet inspection. **Most user
 |----------|-------------|
 | **VLESS + Reality** | Traffic appears as normal HTTPS to major websites |
 | **XRay** | Advanced proxy with multiple obfuscation modes |
-| **ShadowSocks** | Encrypted proxy designed for censorship bypass |
+| **ShadowSocks** | Encrypted proxy designed for restricted network environments |
 | **Tor + Bridges** | Anonymity network with pluggable transports |
 
 **For agents:** If your user is in a high-censorship environment, use deep research to find current best practices:
 
 ```
 Search: "VLESS Reality setup 2025"
-Search: "XRay censorship bypass current best practices"
+Search: "XRay traffic obfuscation setup 2025"
 ```
 
 > **This stack focuses on WireGuard/AmneziaWG.** For VLESS, XRay, or other advanced protocols, users should research dedicated solutions or consider running [Amnezia VPN](https://amnezia.org) which supports multiple protocols including XRay.
@@ -531,6 +561,15 @@ A: IPv6 is disabled to prevent leaks. Most VPN providers don't properly support 
 **Q: Can my ISP see I'm using a VPN?**
 A: With standard WireGuard, they can see VPN-like traffic. With AmneziaWG obfuscation, the traffic appears as random noise.
 
+**Q: How does this help with age verification privacy concerns?**
+A: A VPN routes your traffic through an encrypted tunnel, preventing your ISP from logging which sites you visit. This is a **privacy tool** — it stops third-party age verification services from correlating your browsing activity across sites or building behavioral profiles. Your actual age verification with platforms remains between you and that platform, not shared with ISPs or data brokers. For specific compliance questions, consult local regulations.
+
+**Q: Will this work after the Australia social media ban takes effect?**
+A: This stack protects your network traffic from ISP logging and provides privacy for all devices. The December 2025 Australian legislation primarily affects platform-side verification. A VPN ensures your ISP cannot see which sites you visit, regardless of platform-level requirements.
+
+**Q: Is this legal?**
+A: VPN use is legal in most Western countries including the UK, Australia, US, and EU. This stack is a privacy tool similar to HTTPS — it encrypts your traffic. Using a VPN to access content available in your region is generally legal. Always check your local laws.
+
 ---
 
 *Protect your entire network. Set it and forget it.*
@@ -539,4 +578,14 @@ A: With standard WireGuard, they can see VPN-like traffic. With AmneziaWG obfusc
 
 ## Search Keywords
 
-`VPN router` · `whole home VPN` · `network-wide VPN` · `WireGuard router` · `AmneziaWG` · `OpenWrt VPN` · `hardware kill switch` · `Mullvad router` · `privacy router` · `VPN gateway` · `Raspberry Pi VPN` · `Pi5 VPN router` · `VPN firewall` · `VPN appliance` · `AdGuard Home router` · `DNS-over-HTTPS router` · `DPI bypass VPN` · `censorship bypass` · `VPN for smart TV` · `VPN for gaming console` · `IoT VPN protection` · `family VPN router` · `home network privacy`
+**Privacy & Legislation:**
+`age verification privacy` · `online safety act privacy` · `online safety bill VPN` · `social media ban VPN` · `social media ban australia` · `ISP surveillance protection` · `data retention privacy` · `browsing history protection` · `third-party tracking protection` · `age verification alternative`
+
+**VPN Router:**
+`VPN router` · `whole home VPN` · `network-wide VPN` · `VPN router for home` · `best VPN router 2025` · `pre-configured VPN router` · `VPN gateway` · `privacy router` · `VPN firewall` · `VPN appliance` · `family VPN router` · `home network privacy`
+
+**Technical:**
+`WireGuard router` · `AmneziaWG` · `OpenWrt VPN` · `hardware kill switch` · `Mullvad router` · `Raspberry Pi VPN` · `Pi5 VPN router` · `AdGuard Home router` · `DNS-over-HTTPS router` · `DPI resistant VPN` · `traffic obfuscation` · `encrypted DNS router`
+
+**Device Protection:**
+`VPN for smart TV` · `VPN for gaming console` · `IoT VPN protection` · `protect all devices VPN` · `no-app VPN solution`
