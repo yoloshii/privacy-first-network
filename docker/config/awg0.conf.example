@@ -1,0 +1,67 @@
+# =============================================================================
+# AmneziaWG VPN Configuration
+# =============================================================================
+# Copy to awg0.conf and fill in your VPN provider credentials
+#
+# For Mullvad:
+#   1. Log in to https://mullvad.net/en/account/wireguard-config
+#   2. Generate a WireGuard key pair
+#   3. Copy PrivateKey and PublicKey values below
+#
+# For IVPN:
+#   1. Log in to https://www.ivpn.net/clientarea/vpn-setup
+#   2. Generate WireGuard keys
+#   3. Copy configuration values
+# =============================================================================
+
+[Interface]
+# Your private key (KEEP SECRET - never share!)
+# Generate new: amneziawg genkey
+PrivateKey = YOUR_PRIVATE_KEY_HERE
+
+# =============================================================================
+# AmneziaWG Obfuscation Parameters
+# =============================================================================
+# These parameters add junk data to disguise WireGuard traffic
+# MUST match your VPN server (or use defaults if server doesn't use AWG)
+#
+# For standard WireGuard servers (Mullvad, IVPN), use these defaults:
+# They pass through as regular WireGuard but you keep the config format
+
+# Junk packet count (sent during handshake)
+# Range: 1-128, Default for standard WG compatibility: 0 or omit
+Jc = 4
+
+# Junk packet size range (bytes)
+# Range: 0-1280
+Jmin = 40
+Jmax = 70
+
+# Init/Response packet padding
+# Range: 0-2147483647
+S1 = 0
+S2 = 0
+
+# Packet header obfuscation
+# Range: 0-2147483647
+H1 = 1
+H2 = 2
+H3 = 3
+H4 = 4
+
+[Peer]
+# VPN server's public key (from your provider)
+PublicKey = SERVER_PUBLIC_KEY_HERE
+
+# Optional: Pre-shared key for additional security
+# PresharedKey = PRESHARED_KEY_HERE
+
+# Route all traffic through VPN
+AllowedIPs = 0.0.0.0/0, ::/0
+
+# VPN server address and port
+# Use IP address, not hostname (hostname in .env for reference)
+Endpoint = 185.213.154.68:51820
+
+# Keep connection alive (important for NAT traversal)
+PersistentKeepalive = 25
