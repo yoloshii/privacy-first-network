@@ -426,6 +426,8 @@ Search: "XRay traffic obfuscation setup 2025"
 
 ## Hardware Recommendations
 
+> **Minimum Requirements:** 1GB RAM, dual network interfaces (built-in + USB), OpenWrt support. Recommended: 2GB+ RAM for AdGuard Home DNS filtering.
+
 ### Budget (~$50-80)
 - Raspberry Pi 4 (2GB+) with USB Ethernet adapter
 - GL.iNet travel routers (some run OpenWrt)
@@ -573,19 +575,3 @@ A: VPN use is legal in most Western countries including the UK, Australia, US, a
 ---
 
 *Protect your entire network. Set it and forget it.*
-
----
-
-## Search Keywords
-
-**Privacy & Legislation:**
-`age verification privacy` · `online safety act privacy` · `online safety bill VPN` · `social media ban VPN` · `social media ban australia` · `ISP surveillance protection` · `data retention privacy` · `browsing history protection` · `third-party tracking protection` · `age verification alternative`
-
-**VPN Router:**
-`VPN router` · `whole home VPN` · `network-wide VPN` · `VPN router for home` · `best VPN router 2025` · `pre-configured VPN router` · `VPN gateway` · `privacy router` · `VPN firewall` · `VPN appliance` · `family VPN router` · `home network privacy`
-
-**Technical:**
-`WireGuard router` · `AmneziaWG` · `OpenWrt VPN` · `hardware kill switch` · `Mullvad router` · `Raspberry Pi VPN` · `Pi5 VPN router` · `AdGuard Home router` · `DNS-over-HTTPS router` · `DPI resistant VPN` · `traffic obfuscation` · `encrypted DNS router`
-
-**Device Protection:**
-`VPN for smart TV` · `VPN for gaming console` · `IoT VPN protection` · `protect all devices VPN` · `no-app VPN solution`
