@@ -38,7 +38,6 @@ Determine what the user will run OpenWrt on:
 ```
 □ Dedicated hardware (Raspberry Pi 4/5, x86 mini PC)
 □ Virtual machine (which hypervisor?)
-□ Docker (on what host OS?)
 □ Existing OpenWrt device
 ```
 
@@ -185,9 +184,6 @@ Use these example configs, substituting user-specific values:
 | **AdGuard Home (Mullvad)** | `adguard/mullvad-AdGuardHome.yaml.example` | Mullvad DoH |
 | **Systemd service (AdGuard)** | `scripts/adguardhome.service` | Linux systemd |
 | **BanIP config** | `openwrt/banip/banip.example` | Threat intelligence |
-| **Docker** | | |
-| Docker env (generic) | `docker/.env.example` | Any provider |
-| **Docker env (Mullvad)** | `docker/mullvad.env.example` | Mullvad-optimized |
 
 ---
 
