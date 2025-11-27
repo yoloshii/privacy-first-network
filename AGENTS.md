@@ -767,4 +767,117 @@ ip route add default dev awg0
 
 ---
 
+## Research Escalation
+
+**When to search online:** If you cannot resolve an issue from your knowledge base or this repository's documentation, use web search to find solutions. Don't guess or give up prematurely.
+
+### Escalation Triggers
+
+Search online when you encounter:
+
+1. **Unfamiliar error messages** — Error text you haven't seen before
+2. **Hardware-specific issues** — Device quirks, driver problems, firmware bugs
+3. **Version-specific behavior** — OpenWrt version differences, package conflicts
+4. **Provider-specific configuration** — VPN providers other than Mullvad
+5. **Edge cases** — Unusual ISP setups, exotic network topologies
+6. **Package availability** — Where to find packages for specific architectures
+
+### Search Strategy
+
+**Step 1: Construct targeted queries**
+
+```
+# Good queries (specific, include version/platform):
+"OpenWrt 23.05 amneziawg kernel module not found"
+"Raspberry Pi 5 USB ethernet adapter not detected OpenWrt"
+"Mullvad WireGuard handshake timeout firewall"
+
+# Poor queries (too vague):
+"VPN not working"
+"OpenWrt network problem"
+```
+
+**Step 2: Prioritize authoritative sources**
+
+| Priority | Source | Why |
+|----------|--------|-----|
+| 1 | OpenWrt Forum / Wiki | Official, version-specific |
+| 2 | GitHub Issues (amneziawg-openwrt, etc.) | Bug reports, workarounds |
+| 3 | Reddit r/openwrt, r/WireGuard | Community solutions |
+| 4 | VPN provider docs | Provider-specific config |
+| 5 | Stack Exchange / ServerFault | General networking |
+
+**Step 3: Validate before applying**
+
+- Check publication date (networking changes fast)
+- Verify applies to user's OpenWrt version
+- Understand the change before executing
+- Have rollback plan ready
+
+### Deep Research Topics
+
+For these complex topics, online research is **expected**:
+
+| Topic | Search Focus |
+|-------|--------------|
+| AmneziaWG packages | GitHub releases for specific kernel version |
+| OpenWrt on specific hardware | Device-specific wiki page, forum threads |
+| ISP-specific issues (CGNAT, DS-Lite) | ISP name + WireGuard/VPN workarounds |
+| Alternative VPN providers | Provider name + WireGuard + Linux setup |
+| IPv6 tunnel brokers | If user needs IPv6 over IPv4-only VPN |
+| Performance tuning | MTU optimization, WireGuard benchmarks |
+| Kernel module compilation | Building packages for custom kernel |
+
+### Research Tools
+
+If your agent platform provides web search tools, use them:
+
+```
+# Example tool invocations (syntax varies by platform):
+
+# Perplexity / Web Search
+search("OpenWrt 23.05 kmod-amneziawg installation Raspberry Pi 5")
+
+# Documentation lookup
+search("site:openwrt.org WireGuard policy routing")
+
+# GitHub-specific
+search("site:github.com amneziawg-openwrt kernel 6.6")
+
+# Forum search
+search("site:forum.openwrt.org AmneziaWG handshake failed")
+```
+
+### When Research Fails
+
+If online research doesn't yield a solution:
+
+1. **Document what you tried** — List searches, sources consulted, approaches tested
+2. **Identify the knowledge gap** — What specific information is missing?
+3. **Suggest community resources** — Point user to OpenWrt forum, GitHub issues, Reddit
+4. **Propose diagnostic steps** — What additional information would help?
+5. **Consider alternative approaches** — Different VPN protocol, different hardware, etc.
+
+**Example response when stuck:**
+
+```
+I've searched for solutions to [specific issue] but haven't found a definitive answer.
+
+Sources consulted:
+- OpenWrt forum: [relevant threads found/not found]
+- GitHub issues: [related issues]
+- Reddit: [community experiences]
+
+The issue appears to be [your best assessment].
+
+Recommended next steps:
+1. [Specific diagnostic command]
+2. [Alternative approach to try]
+3. Post to OpenWrt forum with [these details] if unresolved
+
+Would you like me to help draft a forum post, or try [alternative approach]?
+```
+
+---
+
 *This document is designed for AI coding agents. Give your agent access to this entire repository for optimal results.*
