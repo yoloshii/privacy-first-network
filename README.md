@@ -294,9 +294,19 @@ Kill Switch:
 
 ## VPN Provider
 
-Any provider offering WireGuard configurations works. This stack was tested with **[Mullvad](https://mullvad.net)**, which is recommended for privacy — they keep no customer records, require no account/email, and accept anonymous payment (cash, crypto).
+This stack was developed, tested, and deployed with **[Mullvad VPN](https://mullvad.net)**. Mullvad is recommended for privacy-conscious users because they:
 
-For **AmneziaWG obfuscation** (DPI bypass), you need a provider that supplies AWG configs with obfuscation parameters.
+- **Keep no customer records** — no logs, no account data
+- **Require no personal information** — no email, no username
+- **Accept anonymous payment** — cash, cryptocurrency, bank transfer
+- **Offer WireGuard natively** — fast, modern protocol
+
+Any provider offering WireGuard configurations works with this stack. For **AmneziaWG obfuscation** (DPI bypass), use the included example parameters or generate your own — Mullvad uses standard WireGuard.
+
+**Mullvad-specific example configs included:**
+- `openwrt/amneziawg/mullvad-awg0.conf.example` — Tunnel config with obfuscation
+- `adguard/mullvad-AdGuardHome.yaml.example` — DNS using Mullvad DoH
+- `docker/mullvad.env.example` — Docker environment for Mullvad
 
 ---
 
@@ -348,7 +358,13 @@ For **AmneziaWG obfuscation** (DPI bypass), you need a provider that supplies AW
 
 ## AI-Assisted Setup
 
-For complex deployments or troubleshooting, give an AI coding agent (Claude Code, Cursor, Copilot, Windsurf, etc.) access to this **entire repository** plus SSH access to your router.
+For complex deployments or troubleshooting, give an AI coding agent access to this **entire repository** plus SSH access to your router.
+
+**Recommended:** This stack was developed, tested, and deployed using **Claude Opus 4.5** via [Claude Code](https://claude.com/claude-code). For best results, use a capable frontier model that can execute shell commands and understand network configuration:
+
+- **Claude Opus 4.5 / Sonnet 4.5** (Anthropic) — Used for this implementation
+- **GPT-5.1** (OpenAI)
+- **Gemini 3** (Google)
 
 **What the agent can do:**
 - **Network audit** — Probe your current setup and identify requirements

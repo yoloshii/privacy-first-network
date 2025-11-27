@@ -1,0 +1,73 @@
+# =============================================================================
+# Mullvad AmneziaWG Configuration Example
+# =============================================================================
+# This stack was developed and tested with Mullvad VPN
+# /etc/amneziawg/awg0.conf
+#
+# Get your config: https://mullvad.net/en/account/wireguard-config
+# Select "Linux" platform and download config
+#
+# REQUIRED: Replace all YOUR_* values with your actual credentials
+# REQUIRED: chmod 600 /etc/amneziawg/awg0.conf
+
+[Interface]
+# Your Mullvad private key (from downloaded config)
+PrivateKey = YOUR_MULLVAD_PRIVATE_KEY
+
+# =============================================================================
+# AmneziaWG Obfuscation Parameters
+# =============================================================================
+# These parameters make traffic appear as random noise to DPI systems
+# Mullvad doesn't provide AWG configs directly - use these recommended values
+# or generate your own for additional obfuscation
+
+# Junk packet count (1-128) - packets added during handshake
+Jc = 4
+
+# Junk packet size range (bytes, 0-1280)
+Jmin = 40
+Jmax = 70
+
+# Init packet magic values (obfuscate handshake pattern)
+S1 = 0
+S2 = 0
+
+# Header obfuscation values
+H1 = 1
+H2 = 2
+H3 = 3
+H4 = 4
+
+[Peer]
+# Mullvad server public key (from your chosen server)
+PublicKey = YOUR_MULLVAD_SERVER_PUBLIC_KEY
+
+# Route all traffic through VPN
+AllowedIPs = 0.0.0.0/0, ::/0
+
+# =============================================================================
+# Mullvad Server Endpoints
+# =============================================================================
+# Choose a server near you from: https://mullvad.net/en/servers
+# Use IP address (not hostname) to avoid DNS dependency at startup
+#
+# Example servers (verify current IPs at mullvad.net):
+#   au-mel-wg-001: Melbourne, Australia
+#   au-syd-wg-001: Sydney, Australia
+#   us-nyc-wg-001: New York, USA
+#   us-lax-wg-001: Los Angeles, USA
+#   gb-lon-wg-001: London, UK
+#   de-fra-wg-001: Frankfurt, Germany
+#   nl-ams-wg-001: Amsterdam, Netherlands
+#   sg-sin-wg-001: Singapore
+#   jp-tyo-wg-001: Tokyo, Japan
+#
+# Port options:
+#   51820 - Default WireGuard port
+#   53    - May bypass some firewalls (DNS port)
+#   443   - May bypass some firewalls (HTTPS port)
+
+Endpoint = MULLVAD_SERVER_IP:51820
+
+# Keepalive for NAT traversal
+PersistentKeepalive = 25
