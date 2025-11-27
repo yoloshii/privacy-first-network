@@ -424,7 +424,7 @@ Search: "XRay traffic obfuscation setup 2025"
 - Zimaboard or similar x86 SBC
 
 ### Performance (~$150-300)
-- Mini PC with dual NICs (Intel N100 systems)
+- Mini PC with dual NICs (Intel N150 systems)
 - Protectli Vault or similar
 
 ### Homelab / Enterprise
