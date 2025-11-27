@@ -9,8 +9,9 @@ You are assisting a user in deploying a network-wide VPN privacy router. This do
 Help the user deploy a privacy router that:
 1. Routes ALL network traffic through an encrypted VPN tunnel
 2. Implements a hardware-level kill switch (no traffic leaks)
-3. Provides DNS-level ad/tracker blocking
-4. Automatically recovers from failures
+3. Automatically recovers from failures
+4. **Optional:** DNS-level ad/tracker blocking (AdGuard Home)
+5. **Optional:** Threat intelligence blocking (BanIP)
 
 ---
 
@@ -73,7 +74,6 @@ Obtain from user:
 □ WireGuard config file (download from provider's account page)
 □ If using AmneziaWG obfuscation: parameters (Jc, Jmin, Jmax, S1, S2, H1-H4)
   - Use example AWG params from this repo (work with any WireGuard server)
-  - For AirVPN: community has discovered working params (search forums)
   - For self-hosted: Amnezia server generates params automatically
 □ Assigned internal VPN IP (e.g., 10.66.x.x/32 for Mullvad)
 □ VPN server endpoint IP and port
@@ -93,6 +93,18 @@ Obtain from user:
 □ Bandwidth requirements
 □ IPv6 requirements (recommend: disable)
 ```
+
+### 1.5 Optional Addons
+
+**Ask the user which optional features they want:**
+
+```
+□ AdGuard Home - DNS-level ad/tracker blocking, encrypted DNS (DoH)
+□ BanIP - Threat intelligence, blocks known malicious IPs
+□ Neither - Basic VPN routing only (still fully functional)
+```
+
+> **Note:** The core privacy router works without any addons. AdGuard and BanIP enhance security but add complexity. Recommend for technical users; skip for simplicity.
 
 ---
 
@@ -179,11 +191,11 @@ Use these example configs, substituting user-specific values:
 | Hotplug script | `scripts/99-awg-hotplug` | WAN-up trigger |
 | **Init script (OpenWrt)** | `scripts/awg-watchdog.init` | Boot persistence |
 | **Systemd service (AWG)** | `scripts/awg-watchdog.service` | Linux systemd |
-| **Optional Addons** | | |
+| **Optional Addons (ask user in 1.5)** | | |
 | AdGuard Home (generic) | `adguard/AdGuardHome.yaml.example` | Any upstream DNS |
-| **AdGuard Home (Mullvad)** | `adguard/mullvad-AdGuardHome.yaml.example` | Mullvad DoH |
-| **Systemd service (AdGuard)** | `scripts/adguardhome.service` | Linux systemd |
-| **BanIP config** | `openwrt/banip/banip.example` | Threat intelligence |
+| AdGuard Home (Mullvad) | `adguard/mullvad-AdGuardHome.yaml.example` | Mullvad DoH |
+| Systemd service (AdGuard) | `scripts/adguardhome.service` | Linux systemd |
+| BanIP config | `openwrt/banip/banip.example` | Threat intelligence |
 
 ---
 
@@ -267,7 +279,9 @@ uci commit firewall
 
 ### 4.4 DNS
 
-**For Mullvad users, use DoH to Mullvad DNS:**
+**If user chose AdGuard Home (from 1.5):**
+
+For Mullvad users, configure AdGuard upstream DNS:
 ```yaml
 upstream_dns:
   - https://adblock.dns.mullvad.net/dns-query  # With ad blocking
@@ -275,13 +289,29 @@ upstream_dns:
   - https://dns.mullvad.net/dns-query  # Without ad blocking
 ```
 
-**Verification:**
+Verification (with AdGuard):
 ```
 □ AdGuard Home installed and running
 □ Upstream DNS set to DoH (VPN provider)
 □ DHCP pushing AdGuard IP to clients
 □ DNS resolution working through AdGuard
 □ Ad blocking verified (nslookup doubleclick.net → 0.0.0.0)
+```
+
+**If user chose NO AdGuard (basic setup):**
+
+Configure OpenWrt to use VPN provider's DNS directly:
+```bash
+uci set dhcp.@dnsmasq[0].server='100.64.0.4'  # Mullvad DNS
+uci commit dhcp
+/etc/init.d/dnsmasq restart
+```
+
+Verification (without AdGuard):
+```
+□ DNS resolves through VPN tunnel
+□ nslookup google.com returns result
+□ DNS not leaking (test at dnsleaktest.com through VPN)
 ```
 
 ### 4.5 Reliability
