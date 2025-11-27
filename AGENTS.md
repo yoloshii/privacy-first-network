@@ -395,6 +395,288 @@ If you encounter unfamiliar scenarios, research these topics:
 
 ---
 
+## Common Pitfalls & Agent Workarounds
+
+**These are issues you WILL encounter. Plan for them.**
+
+### 1. IP Address Conflict with Existing Router
+
+**The Problem:** User's existing router is likely `192.168.1.1`. If you configure the privacy router to also be `192.168.1.1`, you'll have a conflict until cutover.
+
+**Agent Strategy:**
+```
+BEFORE cutover:
+  - Use a DIFFERENT IP for privacy router (e.g., 192.168.1.2)
+  - This allows testing while existing router still works
+  - SSH to 192.168.1.2 for configuration
+
+AT cutover:
+  - Existing router → AP mode (disable DHCP, assign static like 192.168.1.4)
+  - Privacy router → Change to 192.168.1.1 (becomes new gateway)
+  - OR: Keep privacy router at .2 and update DHCP to push .2 as gateway
+```
+
+**Commands:**
+```bash
+# During setup (before cutover), use different IP
+uci set network.lan.ipaddr='192.168.1.2'
+uci commit network
+/etc/init.d/network restart
+
+# AT cutover time, reclaim .1 if desired
+uci set network.lan.ipaddr='192.168.1.1'
+uci commit network
+```
+
+### 2. SSH Lockout During Firewall Changes
+
+**The Problem:** Applying firewall rules can lock you out of SSH if rules are wrong.
+
+**Agent Strategy:**
+```bash
+# ALWAYS use a revert timer before applying firewall changes
+(sleep 120 && uci revert firewall && /etc/init.d/firewall restart) &
+
+# Now apply changes
+uci commit firewall
+/etc/init.d/firewall restart
+
+# If everything works, kill the revert timer
+killall sleep
+
+# If locked out, wait 2 minutes for automatic revert
+```
+
+### 3. Lost SSH After Network Interface Changes
+
+**The Problem:** Changing network config while connected via SSH = disconnection.
+
+**Agent Strategy:**
+- Warn user: "You will lose SSH connection. Reconnect to new IP."
+- Ensure user has physical/console access as backup
+- If device has serial console or physical screen, prefer that during changes
+
+```bash
+# Before network changes, echo the plan
+echo "After this change, reconnect via: ssh root@NEW_IP"
+
+# Apply and immediately exit (don't wait for response)
+uci commit network && /etc/init.d/network restart &
+exit
+```
+
+### 4. VPN Handshake Fails - Routing Loop
+
+**The Problem:** Default route via VPN before endpoint route exists = VPN packets try to go through VPN = infinite loop = no handshake.
+
+**Detection:**
+```bash
+# Check if endpoint is routable via WAN (not via awg0!)
+ip route get VPN_SERVER_IP
+# WRONG: VPN_SERVER_IP dev awg0  ← routing loop!
+# RIGHT: VPN_SERVER_IP via 192.168.1.1 dev eth0
+```
+
+**Fix:**
+```bash
+# Add explicit endpoint route via WAN gateway
+ip route add VPN_SERVER_IP via WAN_GATEWAY
+
+# Verify before setting default route
+ip route get VPN_SERVER_IP
+# Must show: via WAN_GATEWAY dev eth0
+
+# NOW safe to set default route
+ip route add default dev awg0
+```
+
+### 5. User's VPN Config Has Hostname, Not IP
+
+**The Problem:** WireGuard Endpoint with hostname (e.g., `us-nyc-wg-001.relays.mullvad.net`) won't work reliably because DNS may not resolve during boot/reconnection.
+
+**Agent Strategy:**
+```bash
+# Resolve hostname to IP during config generation
+nslookup us-nyc-wg-001.relays.mullvad.net
+
+# Use the IP in config, NOT the hostname
+# awg0.conf:
+Endpoint = 185.213.154.68:51820  # ✓ IP address
+# NOT: Endpoint = us-nyc-wg-001.relays.mullvad.net:51820  # ✗ hostname
+```
+
+### 6. AmneziaWG Packages Not Found
+
+**The Problem:** AmneziaWG isn't in standard OpenWrt repos. User needs to download from GitHub releases.
+
+**Agent Strategy:**
+```bash
+# 1. Identify OpenWrt version and architecture
+cat /etc/openwrt_release
+uname -m
+
+# 2. Download correct packages from:
+# https://github.com/amnezia-vpn/amneziawg-openwrt/releases
+
+# 3. Match version EXACTLY (e.g., 23.05.3 + aarch64_cortex-a72)
+
+# 4. Install deps first
+opkg update
+opkg install kmod-crypto-lib-chacha20 kmod-crypto-lib-chacha20poly1305 \
+             kmod-crypto-lib-curve25519 kmod-udptunnel4 kmod-udptunnel6
+
+# 5. Install AWG packages
+cd /tmp
+wget [URL to kmod-amneziawg package]
+wget [URL to amneziawg-tools package]
+opkg install ./kmod-amneziawg_*.ipk
+opkg install ./amneziawg-tools_*.ipk
+```
+
+### 7. DHCP Clients Keep Old DNS
+
+**The Problem:** After changing DHCP to push new DNS (AdGuard), clients keep using old DNS until lease renewal.
+
+**Agent Strategy:**
+- Shorten DHCP lease time during transition
+- Instruct user to manually renew on test device
+- Or wait for natural lease expiry
+
+```bash
+# Temporarily shorten leases for faster rollout
+uci set dhcp.lan.leasetime='5m'
+uci commit dhcp
+/etc/init.d/dnsmasq restart
+
+# After all clients updated, restore normal lease time
+uci set dhcp.lan.leasetime='12h'
+uci commit dhcp
+```
+
+**Client-side renewal:**
+```bash
+# Linux
+sudo dhclient -r && sudo dhclient
+
+# Windows
+ipconfig /release && ipconfig /renew
+
+# macOS
+sudo ipconfig set en0 BOOTP && sudo ipconfig set en0 DHCP
+```
+
+### 8. IPv6 Leaking Despite Being "Disabled"
+
+**The Problem:** IPv6 can leak through multiple paths even after disabling in UCI.
+
+**Agent Strategy - Defense in Depth:**
+```bash
+# Layer 1: UCI network config
+uci set network.wan.ipv6='0'
+uci set network.lan.ipv6='0'
+uci delete network.wan6 2>/dev/null
+uci commit network
+
+# Layer 2: Kernel sysctl
+echo 'net.ipv6.conf.all.disable_ipv6=1' >> /etc/sysctl.conf
+echo 'net.ipv6.conf.default.disable_ipv6=1' >> /etc/sysctl.conf
+sysctl -p
+
+# Layer 3: Firewall (block any IPv6 that slips through)
+ip6tables -P INPUT DROP 2>/dev/null
+ip6tables -P OUTPUT DROP 2>/dev/null
+ip6tables -P FORWARD DROP 2>/dev/null
+
+# Layer 4: AdGuard (block AAAA records)
+# In AdGuardHome.yaml: aaaa_disabled: true
+```
+
+### 9. Can't Determine WAN Gateway Automatically
+
+**The Problem:** Scripts use `ip route | grep default` to find WAN gateway, but before VPN is up, there may be no default route.
+
+**Agent Strategy:**
+```bash
+# Method 1: Get from DHCP lease
+cat /tmp/dhcp.leases 2>/dev/null
+uci get network.wan.gateway 2>/dev/null
+
+# Method 2: Get from interface (if DHCP)
+. /lib/functions/network.sh
+network_get_gateway GATEWAY wan
+echo $GATEWAY
+
+# Method 3: Parse from WAN interface
+ip route show dev eth0 | grep default | awk '{print $3}'
+
+# Fallback: Ask user or use common default
+echo "192.168.1.1"  # Common for most home networks
+```
+
+### 10. AdGuard Home Port 53 Conflict
+
+**The Problem:** dnsmasq already binds to port 53. AdGuard can't start.
+
+**Agent Strategy:**
+```bash
+# Option A: Disable dnsmasq DNS, keep DHCP
+uci set dhcp.@dnsmasq[0].port='0'  # Disable DNS
+uci commit dhcp
+/etc/init.d/dnsmasq restart
+
+# Option B: Run AdGuard on different port, redirect
+# Run AdGuard on 5353, NAT redirect 53→5353
+iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-port 5353
+iptables -t nat -A PREROUTING -p tcp --dport 53 -j REDIRECT --to-port 5353
+```
+
+### 11. Kill Switch Test Shows False Positive
+
+**The Problem:** Testing kill switch by bringing down `awg0` may show "working" but packets could be cached or using stale connections.
+
+**Agent Strategy:**
+```bash
+# Proper kill switch test:
+# 1. Clear connection tracking
+conntrack -F
+
+# 2. Bring down VPN
+ip link set awg0 down
+
+# 3. Wait for routing to update
+sleep 2
+
+# 4. Test with fresh connection (not cached)
+curl --connect-timeout 5 https://ifconfig.me
+# Should timeout or fail, NOT show any IP
+
+# 5. Bring VPN back up
+ip link set awg0 up
+```
+
+### 12. USB Ethernet Adapter Not Detected
+
+**The Problem:** For single-NIC devices (Pi), USB Ethernet adapter may need drivers.
+
+**Agent Strategy:**
+```bash
+# Check if adapter detected
+lsusb
+ip link show
+
+# Common adapters need:
+opkg update
+opkg install kmod-usb-net-asix      # ASIX AX88xxx
+opkg install kmod-usb-net-rtl8152   # Realtek RTL8152/8153
+opkg install kmod-usb-net-cdc-ether # Generic CDC
+
+# After install, replug adapter
+# New interface should appear (often usb0 or eth1)
+ip link show
+```
+
+---
+
 ## Error Recovery
 
 ### VPN Won't Connect
