@@ -155,7 +155,11 @@ Use these example configs, substituting user-specific values:
 | **VPN tunnel (Mullvad)** | `openwrt/amneziawg/mullvad-awg0.conf.example` | Mullvad-optimized |
 | AdGuard Home (generic) | `adguard/AdGuardHome.yaml.example` | Any upstream DNS |
 | **AdGuard Home (Mullvad)** | `adguard/mullvad-AdGuardHome.yaml.example` | Mullvad DoH |
-| Watchdog script | `scripts/awg-watchdog.sh` | Auto-recovery |
+| Watchdog script | `scripts/awg-watchdog.sh` | Auto-recovery daemon |
+| Hotplug script | `scripts/99-awg-hotplug` | WAN-up trigger |
+| **Init script (OpenWrt)** | `scripts/awg-watchdog.init` | Boot persistence |
+| **Systemd service (AWG)** | `scripts/awg-watchdog.service` | Linux systemd |
+| **Systemd service (AdGuard)** | `scripts/adguardhome.service` | Linux systemd |
 | Docker env (generic) | `docker/.env.example` | Any provider |
 | **Docker env (Mullvad)** | `docker/mullvad.env.example` | Mullvad-optimized |
 

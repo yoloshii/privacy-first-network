@@ -1,0 +1,63 @@
+# =============================================================================
+# AdGuard Home Systemd Service
+# =============================================================================
+#
+# For running AdGuard Home as a system service on Linux
+#
+# Installation:
+#   1. Download AdGuard Home:
+#      curl -s -S -L https://static.adguard.com/adguardhome/release/AdGuardHome_linux_arm64.tar.gz | tar xz
+#      # Use linux_amd64 for x86 systems, linux_arm64 for Pi5/arm64
+#   2. Move to /opt:
+#      sudo mv AdGuardHome /opt/
+#   3. Run initial setup:
+#      /opt/AdGuardHome/AdGuardHome --web-addr 0.0.0.0:3000
+#      # Visit http://[IP]:3000 to complete wizard
+#   4. Copy this file to /etc/systemd/system/adguardhome.service
+#   5. systemctl daemon-reload
+#   6. systemctl enable adguardhome
+#   7. systemctl start adguardhome
+#
+# Commands:
+#   systemctl status adguardhome     # Check status
+#   journalctl -u adguardhome -f     # Follow logs
+#   systemctl restart adguardhome    # Restart
+#
+# Configuration: /opt/AdGuardHome/AdGuardHome.yaml
+# Web UI: http://[IP]:3000
+#
+# =============================================================================
+
+[Unit]
+Description=AdGuard Home - Network-wide ads & trackers blocking DNS server
+Documentation=https://github.com/AdguardTeam/AdGuardHome
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/AdGuardHome
+ExecStart=/opt/AdGuardHome/AdGuardHome -c /opt/AdGuardHome/AdGuardHome.yaml --no-check-update
+Restart=always
+RestartSec=10
+
+# Capabilities for binding to low ports (53)
+AmbientCapabilities=CAP_NET_BIND_SERVICE CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/AdGuardHome
+PrivateTmp=yes
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=adguardhome
+
+[Install]
+WantedBy=multi-user.target
