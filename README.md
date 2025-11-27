@@ -4,6 +4,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+> **🤖 Using an AI agent?** Give it access to this entire repo and read [AGENTS.md](AGENTS.md) for guided deployment. The agent will audit your network, plan implementation, and walk you through setup step-by-step.
+
 ---
 
 ## Why Network-Level VPN?
@@ -352,19 +354,21 @@ For **AmneziaWG obfuscation**, you need a provider that supplies AWG configs wit
 
 ## AI-Assisted Setup
 
-For complex deployments or troubleshooting, consider giving an AI coding agent (Claude Code, Cursor, Copilot, etc.) access to this repository and SSH access to your router. This enables:
+For complex deployments or troubleshooting, give an AI coding agent (Claude Code, Cursor, Copilot, Windsurf, etc.) access to this **entire repository** plus SSH access to your router.
 
-- **Guided configuration** — Agent reads your network state and suggests correct values
-- **Automated troubleshooting** — Agent can diagnose routing, firewall, and DNS issues
-- **Config validation** — Agent verifies your setup matches best practices
-- **Scripted deployment** — Agent can execute installation steps with your approval
+**What the agent can do:**
+- **Network audit** — Probe your current setup and identify requirements
+- **Guided configuration** — Generate configs with your specific IPs, keys, and preferences
+- **Automated troubleshooting** — Diagnose routing, firewall, and DNS issues in real-time
+- **Scripted deployment** — Execute installation steps with your approval
 
-**How to use:**
-1. Clone this repo locally or give agent access via GitHub
-2. Provide SSH credentials to your OpenWrt device
-3. Ask the agent to help configure based on your network topology
+**Quick start:**
+1. Clone this repo or give agent GitHub access
+2. Point agent to **[AGENTS.md](AGENTS.md)** — contains the full operational framework
+3. Provide SSH credentials to your target device
+4. Let agent audit, plan, and guide you through deployment
 
-The scripts and configs in this repo are designed to be agent-friendly with clear parameterization and comments.
+The agent instructions include diagnostic commands, validation tests, error recovery procedures, and safety rules. All configs in this repo are parameterized and agent-friendly.
 
 ---
 
