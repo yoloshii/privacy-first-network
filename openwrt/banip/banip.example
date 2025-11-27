@@ -1,0 +1,124 @@
+# =============================================================================
+# BanIP Configuration for OpenWrt
+# =============================================================================
+#
+# BanIP blocks malicious IPs using threat intelligence feeds.
+# This is an OPTIONAL security addon - the core VPN functionality works without it.
+#
+# Installation:
+#   opkg update
+#   opkg install banip
+#
+# Copy to: /etc/config/banip
+# Then: /etc/init.d/banip enable && /etc/init.d/banip start
+#
+# Web UI: Services → BanIP (if luci-app-banip installed)
+#
+# =============================================================================
+
+config banip 'global'
+	# Enable/disable BanIP
+	option ban_enabled '1'
+
+	# Automatically start on boot
+	option ban_autostart '1'
+
+	# Debug level (0=off, 1=basic, 2=verbose)
+	option ban_debug '0'
+
+	# ==========================================================================
+	# NETWORK INTERFACES
+	# ==========================================================================
+	# Which interfaces to protect
+	# - WAN: Block inbound attacks from internet
+	# - LAN: Usually not needed (trusted network)
+
+	list ban_iface 'wan'
+
+	# ==========================================================================
+	# BLOCKLIST SOURCES
+	# ==========================================================================
+	# Enable threat intelligence feeds
+	# Each feed blocks different threat categories
+	#
+	# Recommended minimum set for privacy router:
+
+	# Spamhaus DROP - Known bad networks (conservative, low false positives)
+	list ban_feed 'drop'
+
+	# Spamhaus EDROP - Extended DROP list
+	list ban_feed 'edrop'
+
+	# Abuse.ch Feodo Tracker - Banking trojans C2 servers
+	list ban_feed 'feodo'
+
+	# Abuse.ch SSL Blacklist - Malicious SSL certificates
+	list ban_feed 'sslbl'
+
+	# Emerging Threats - Compromised IPs
+	list ban_feed 'etcompromised'
+
+	# DShield - Top attacking IPs
+	list ban_feed 'dshield'
+
+	# ==========================================================================
+	# OPTIONAL ADDITIONAL FEEDS
+	# ==========================================================================
+	# Uncomment to enable more aggressive blocking
+	# WARNING: May increase false positives
+
+	# Tor exit nodes (blocks Tor - only if you don't use Tor)
+	# list ban_feed 'tor'
+
+	# Firehol Level 1 - Conservative threat list
+	# list ban_feed 'firehol1'
+
+	# Firehol Level 2 - More aggressive
+	# list ban_feed 'firehol2'
+
+	# Blocklist.de - Fail2ban reported IPs
+	# list ban_feed 'blocklist'
+
+	# ==========================================================================
+	# WHITELIST
+	# ==========================================================================
+	# IPs/networks that should never be blocked
+	# Add your VPN provider's server IPs here to prevent lockouts
+
+	# Example: Whitelist your VPN endpoint
+	# list ban_allowlist 'MULLVAD_SERVER_IP/32'
+
+	# Whitelist your local networks
+	list ban_allowlist '192.168.0.0/16'
+	list ban_allowlist '10.0.0.0/8'
+	list ban_allowlist '172.16.0.0/12'
+
+	# ==========================================================================
+	# PERFORMANCE TUNING
+	# ==========================================================================
+
+	# Maximum entries per set (0=unlimited)
+	option ban_maxelem '262144'
+
+	# Feed update interval in seconds (default: 86400 = 24h)
+	option ban_fetchinterval '86400'
+
+	# Use compressed downloads
+	option ban_compressed '1'
+
+	# Report mode only (log but don't block)
+	option ban_reportonly '0'
+
+	# ==========================================================================
+	# LOGGING
+	# ==========================================================================
+
+	# Log blocked packets to syslog
+	option ban_logterm '1'
+
+	# Log limit (packets per minute)
+	option ban_loglimit '100'
+
+	# Mail notifications (requires msmtp)
+	option ban_mail '0'
+	# option ban_mailreceiver 'admin@example.com'

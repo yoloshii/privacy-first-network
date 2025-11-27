@@ -96,17 +96,22 @@ The kill switch is implemented in the **firewall and routing table**, not in sof
 
 ## Features
 
-### Core Protection
+### Core Protection (Required)
 - **Network-wide VPN** — All devices protected automatically
 - **Hardware kill switch** — No traffic leaks, ever
-- **DNS leak protection** — DNS queries encrypted via DoH
 - **IPv6 leak prevention** — IPv6 completely disabled
-- **Ad & tracker blocking** — Network-level blocking via AdGuard Home
 
-### Reliability
+### Reliability (Required)
 - **Automatic recovery** — Watchdog restarts tunnel on failure
 - **Boot persistence** — VPN starts automatically on power-up
 - **Connection monitoring** — Continuous health checks
+
+### Optional Security Addons
+- **AdGuard Home** — DNS-over-HTTPS encryption, ad/tracker blocking
+- **BanIP** — Threat intelligence, malicious IP blocking
+- **HTTPS for LuCI** — Encrypted admin interface
+
+See [OPTIONAL_ADDONS.md](docs/OPTIONAL_ADDONS.md) for installation and configuration.
 
 ### Advanced (For Technical Users)
 - **DPI bypass** — AmneziaWG obfuscation defeats deep packet inspection
@@ -224,6 +229,7 @@ docker-compose up -d
 | [HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) | Deep technical dive into every component |
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Step-by-step installation guide |
 | [CONFIGURATION.md](docs/CONFIGURATION.md) | Complete configuration reference |
+| [OPTIONAL_ADDONS.md](docs/OPTIONAL_ADDONS.md) | AdGuard Home, BanIP, and other security addons |
 | [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and solutions |
 
 ---
