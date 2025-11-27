@@ -48,12 +48,24 @@ Determine what the user will run OpenWrt on:
 
 **Recommended: Mullvad VPN** — This stack was developed and tested with Mullvad. They keep no customer records, require no personal info, and accept anonymous payment.
 
+**Compatible providers (any WireGuard provider works):**
+| Provider | WireGuard | AmneziaWG Params | Notes |
+|----------|-----------|------------------|-------|
+| Mullvad | ✅ | User-supplied | Tested, recommended |
+| IVPN | ✅ | User-supplied | Good alternative |
+| AirVPN | ✅ | Community-discovered | Check AirVPN forums |
+| ProtonVPN | ✅ | User-supplied | Free tier available |
+| Self-hosted | ✅ | Server-generated | Amnezia VPN server |
+
 Obtain from user:
 
 ```
-□ VPN provider name (Mullvad recommended, or IVPN, ProtonVPN, etc.)
+□ VPN provider name
 □ WireGuard config file (download from provider's account page)
 □ If using AmneziaWG obfuscation: parameters (Jc, Jmin, Jmax, S1, S2, H1-H4)
+  - Most providers use standard WireGuard; use example AWG params from this repo
+  - For AirVPN: community has discovered working params (search forums)
+  - For self-hosted: Amnezia server generates params automatically
 □ Assigned internal VPN IP (e.g., 10.66.x.x/32 for Mullvad)
 □ VPN server endpoint IP and port
 □ Private key and server public key

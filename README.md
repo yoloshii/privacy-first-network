@@ -23,7 +23,9 @@ Turn a Raspberry Pi or mini PC into a VPN gateway that protects your entire home
 - ✅ **Auto-recovery** — Watchdog restarts tunnel on failure
 - ✅ **AI-deployable** — Full agent instructions included
 
-**Works with:** Mullvad, IVPN, ProtonVPN, or any WireGuard-compatible provider
+**Works with:** Any WireGuard-compatible VPN provider (Mullvad, IVPN, AirVPN, etc.)
+
+**AmneziaWG obfuscation:** Mullvad + custom params, AirVPN, or self-hosted Amnezia server
 
 ---
 
@@ -317,16 +319,30 @@ Kill Switch:
 
 ---
 
-## VPN Provider
+## VPN Provider Compatibility
 
-This stack was developed, tested, and deployed with **[Mullvad VPN](https://mullvad.net)**. Mullvad is recommended for privacy-conscious users because they:
+### Standard WireGuard (All Providers)
 
-- **Keep no customer records** — no logs, no account data
-- **Require no personal information** — no email, no username
-- **Accept anonymous payment** — cash, cryptocurrency, bank transfer
-- **Offer WireGuard natively** — fast, modern protocol
+Any VPN provider offering WireGuard configs works with this stack:
 
-Any provider offering WireGuard configurations works with this stack. For **AmneziaWG obfuscation** (DPI bypass), use the included example parameters or generate your own — Mullvad uses standard WireGuard.
+| Provider | WireGuard | Privacy | Notes |
+|----------|-----------|---------|-------|
+| **[Mullvad](https://mullvad.net)** | ✅ | No logs, anonymous payment | Recommended, tested |
+| **[IVPN](https://ivpn.net)** | ✅ | No logs, open source apps | Good alternative |
+| **[AirVPN](https://airvpn.org)** | ✅ | No logs, port forwarding | Community AWG params |
+| **[ProtonVPN](https://protonvpn.com)** | ✅ | No logs (paid plans) | Free tier available |
+
+### AmneziaWG Obfuscation (DPI Bypass)
+
+For **AmneziaWG obfuscation** to bypass deep packet inspection, you need a provider or server that supports the AWG parameters (Jc, Jmin, Jmax, S1, S2, H1-H4):
+
+| Option | AWG Params | Notes |
+|--------|------------|-------|
+| **Mullvad + Custom Params** | User-supplied | Use included example values |
+| **AirVPN** | Community-discovered | See [AirVPN forums](https://airvpn.org/forums/) |
+| **Self-hosted Amnezia** | Server-generated | Run your own [Amnezia VPN server](https://amnezia.org) |
+
+> **Note:** Most commercial VPN providers use standard WireGuard. The included AWG obfuscation parameters work with any WireGuard server — they add client-side obfuscation. For maximum DPI resistance, both client and server should use matching AWG parameters.
 
 **Mullvad-specific example configs included:**
 - `openwrt/amneziawg/mullvad-awg0.conf.example` — Tunnel config with obfuscation
