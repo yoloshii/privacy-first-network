@@ -498,22 +498,6 @@ This stack builds on excellent open-source work:
 
 ---
 
-## Contributing
-
-Contributions welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Test your changes
-4. Submit a pull request
-
-Areas where help is appreciated:
-- Additional hardware guides
-- Localization
-- Performance optimizations
-
----
-
 ## License
 
 MIT License - See [LICENSE](LICENSE) for details.
