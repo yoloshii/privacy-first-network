@@ -1,0 +1,67 @@
+#!/bin/sh
+# =============================================================================
+# AmneziaWG Hotplug Script - Auto-start tunnel when WAN comes up
+# =============================================================================
+#
+# Installation:
+#   1. Copy to /etc/hotplug.d/iface/99-awg
+#   2. chmod +x /etc/hotplug.d/iface/99-awg
+#   3. Edit configuration section below
+#
+# This script triggers when network interfaces change state.
+# It starts the AmneziaWG tunnel automatically when WAN gets an IP.
+#
+# =============================================================================
+
+# Only act on WAN interface coming up
+[ "$ACTION" = "ifup" ] && [ "$INTERFACE" = "wan" ] && {
+    sleep 2
+
+    # Check if AWG is already up
+    if ip link show awg0 2>/dev/null | grep -q UP; then
+        logger -t awg-hotplug "awg0 already up"
+        exit 0
+    fi
+
+    logger -t awg-hotplug "Starting AmneziaWG tunnel"
+
+    # =============================================================================
+    # CONFIGURATION - Edit these values for your setup
+    # =============================================================================
+
+    CONFIG_FILE="/etc/amneziawg/awg0.conf"
+
+    # Your VPN internal IP (assigned by VPN provider)
+    VPN_IP="CHANGE_ME"
+
+    # VPN server endpoint IP
+    ENDPOINT_IP="CHANGE_ME"
+
+    # =============================================================================
+
+    # Create interface
+    ip link del dev awg0 2>/dev/null
+    ip link add dev awg0 type amneziawg
+
+    # Apply config
+    /usr/bin/amneziawg setconf awg0 "$CONFIG_FILE"
+
+    # Add address and bring up
+    ip address add "$VPN_IP/32" dev awg0
+    ip link set up dev awg0
+
+    # Get WAN gateway (from DHCP)
+    GATEWAY=$(ip route | grep "default via" | grep -v awg | head -1 | awk '{print $3}')
+
+    # If no gateway via WAN yet, use LAN gateway for testing
+    [ -z "$GATEWAY" ] && GATEWAY="192.168.1.1"
+
+    # Add endpoint route via gateway (prevents routing loop)
+    ip route add $ENDPOINT_IP via $GATEWAY 2>/dev/null
+
+    # Add default route via AWG
+    ip route del default 2>/dev/null
+    ip route add default dev awg0
+
+    logger -t awg-hotplug "AmneziaWG tunnel started (gateway: $GATEWAY)"
+}

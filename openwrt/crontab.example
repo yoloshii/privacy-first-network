@@ -1,0 +1,27 @@
+# =============================================================================
+# OpenWrt Crontab - Scheduled Maintenance Tasks
+# =============================================================================
+#
+# Installation:
+#   Edit with: crontab -e
+#   Or add to: /etc/crontabs/root
+#
+# Cron format: minute hour day month weekday command
+#   *  = every
+#   */5 = every 5
+#
+# =============================================================================
+
+# Daily config backup at 3am
+0 3 * * * /etc/backup/auto-backup.sh
+
+# Daily log rotation check at 4am
+0 4 * * * /etc/backup/rotate-watchdog-log.sh
+
+# Optional: Weekly system reboot (Sunday 4:30am) - uncomment if desired
+# 30 4 * * 0 /sbin/reboot
+
+# Optional: Hourly DNS cache flush - uncomment if experiencing DNS issues
+# 0 * * * * /etc/init.d/dnsmasq restart
+
+# =============================================================================
