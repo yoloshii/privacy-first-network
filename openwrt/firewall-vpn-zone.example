@@ -1,0 +1,101 @@
+# =============================================================================
+# OpenWrt Firewall - VPN Zone Configuration (Kill Switch)
+# =============================================================================
+#
+# This configuration creates a VPN zone for the AmneziaWG tunnel and implements
+# a kill switch that blocks all internet traffic when the VPN is down.
+#
+# How it works:
+# - LAN zone can only forward to VPN zone (not to WAN)
+# - If VPN tunnel is down, traffic has nowhere to go
+# - LAN management (SSH, LuCI) always works (stays within LAN zone)
+#
+# Installation:
+#   Add these lines to /etc/config/firewall
+#   Or use UCI commands below
+#
+# =============================================================================
+
+# --- Add to /etc/config/firewall ---
+
+config zone 'vpn'
+	option name 'vpn'
+	option device 'awg0'
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+	option masq '1'
+	option mtu_fix '1'
+
+config forwarding 'lan_vpn'
+	option src 'lan'
+	option dest 'vpn'
+
+# Block all IPv6 forwarding (prevents IPv6 leaks)
+config rule 'block_ipv6_forward'
+	option name 'Block-IPv6-Forward'
+	option family 'ipv6'
+	option src '*'
+	option dest '*'
+	option target 'DROP'
+
+# =============================================================================
+# UCI Commands (alternative to editing config file)
+# =============================================================================
+#
+# # Create VPN zone
+# uci set firewall.vpn=zone
+# uci set firewall.vpn.name='vpn'
+# uci set firewall.vpn.device='awg0'
+# uci set firewall.vpn.input='REJECT'
+# uci set firewall.vpn.output='ACCEPT'
+# uci set firewall.vpn.forward='REJECT'
+# uci set firewall.vpn.masq='1'
+# uci set firewall.vpn.mtu_fix='1'
+#
+# # Create LAN → VPN forwarding (this is the kill switch)
+# uci set firewall.lan_vpn=forwarding
+# uci set firewall.lan_vpn.src='lan'
+# uci set firewall.lan_vpn.dest='vpn'
+#
+# # Block IPv6 forwarding
+# uci set firewall.block_ipv6_forward=rule
+# uci set firewall.block_ipv6_forward.name='Block-IPv6-Forward'
+# uci set firewall.block_ipv6_forward.family='ipv6'
+# uci set firewall.block_ipv6_forward.src='*'
+# uci set firewall.block_ipv6_forward.dest='*'
+# uci set firewall.block_ipv6_forward.target='DROP'
+#
+# # Commit and restart
+# uci commit firewall
+# /etc/init.d/firewall restart
+#
+# =============================================================================
+# Verification
+# =============================================================================
+#
+# # Check zones
+# uci show firewall | grep -E "zone|forwarding"
+#
+# # Check nftables rules
+# nft list ruleset | grep -A5 "chain forward"
+#
+# # Test kill switch (WARNING: will drop internet!)
+# ip link set awg0 down
+# ping -c 3 8.8.8.8  # Should fail
+# ip link set awg0 up
+# ping -c 3 8.8.8.8  # Should work
+#
+# =============================================================================
+# Important Notes
+# =============================================================================
+#
+# 1. Do NOT create lan → wan forwarding rule - this breaks the kill switch
+#
+# 2. LAN management access (SSH, LuCI) works independently of VPN state
+#    because it stays within the LAN zone (input=ACCEPT)
+#
+# 3. The kill switch only blocks FORWARDED traffic (internet-bound from clients)
+#    INPUT/OUTPUT on LAN zone is always allowed
+#
+# =============================================================================
