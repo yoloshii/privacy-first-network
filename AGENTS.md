@@ -83,7 +83,7 @@ Obtain from user:
 **For Mullvad users:**
 - Get WireGuard config: https://mullvad.net/en/account/wireguard-config
 - Server list with IPs: https://mullvad.net/en/servers
-- DNS servers: `100.64.0.4` (plain) or `https://adblock.dns.mullvad.net/dns-query` (DoH with blocking)
+- DNS servers: Provider-specific (see DNS table below)
 
 ### 1.4 Special Requirements
 
@@ -187,10 +187,15 @@ Use these example configs, substituting user-specific values:
 | DHCP config | `openwrt/dhcp/dhcp.example` | DNS push to clients |
 | VPN tunnel (generic) | `openwrt/amneziawg/awg0.conf.example` | Any WireGuard provider |
 | **VPN tunnel (Mullvad)** | `openwrt/amneziawg/mullvad-awg0.conf.example` | Mullvad-optimized |
-| Watchdog script | `scripts/awg-watchdog.sh` | Auto-recovery daemon |
-| Hotplug script | `scripts/99-awg-hotplug` | WAN-up trigger |
-| **Init script (OpenWrt)** | `scripts/awg-watchdog.init` | Boot persistence |
+| **Watchdog (basic)** | `scripts/awg-watchdog.sh` | Simple auto-recovery |
+| **Watchdog (failover)** | `scripts/awg-watchdog-failover.sh` | Multi-server failover + failback |
+| Server list (failover) | `openwrt/amneziawg/servers.conf.example` | For failover watchdog |
+| Hotplug script | `openwrt/hotplug.d/99-awg` | WAN-up trigger |
+| **Init script (OpenWrt)** | `openwrt/init.d/awg-watchdog` | Boot persistence (procd) |
 | **Systemd service (AWG)** | `scripts/awg-watchdog.service` | Linux systemd |
+| Auto-backup script | `scripts/auto-backup.sh` | Daily config backup |
+| Log rotation | `scripts/rotate-watchdog-log.sh` | Prevent log bloat |
+| Cron jobs | `openwrt/crontab.example` | Scheduled tasks |
 | **Optional Addons (ask user in 1.5)** | | |
 | AdGuard Home (generic) | `adguard/AdGuardHome.yaml.example` | Any upstream DNS |
 | AdGuard Home (Mullvad) | `adguard/mullvad-AdGuardHome.yaml.example` | Mullvad DoH |
@@ -302,7 +307,9 @@ Verification (with AdGuard):
 
 Configure OpenWrt to use VPN provider's DNS directly:
 ```bash
-uci set dhcp.@dnsmasq[0].server='100.64.0.4'  # Mullvad DNS
+# Replace with your VPN provider's DNS IP
+# Mullvad: 100.64.0.4 | IVPN: 10.0.254.1 | Proton: 10.2.0.1
+uci set dhcp.@dnsmasq[0].server='VPN_PROVIDER_DNS_IP'
 uci commit dhcp
 /etc/init.d/dnsmasq restart
 ```
@@ -316,11 +323,41 @@ Verification (without AdGuard):
 
 ### 4.5 Reliability
 
+**Choose watchdog type:**
+
+**Basic watchdog** (`scripts/awg-watchdog.sh`) - Restarts tunnel on failure
 ```
-□ Watchdog script installed and running
-□ Hotplug script installed for WAN reconnection
+□ Copy to /etc/awg-watchdog.sh
+□ Configure VPN_IP and ENDPOINT_IP
+□ Install init script (openwrt/init.d/awg-watchdog)
+□ Enable: /etc/init.d/awg-watchdog enable && start
+```
+
+**Failover watchdog** (`scripts/awg-watchdog-failover.sh`) - Multi-server failover + failback
+```
+□ Copy to /etc/awg-watchdog.sh
+□ Configure VPN_IP
+□ Create server list: /etc/amneziawg/servers.conf (from servers.conf.example)
+   - Add 3-5 servers from same region for low latency
+   - First server = primary (watchdog will failback to it)
+   - Get server IPs from your VPN provider
+□ Install init script (openwrt/init.d/awg-watchdog)
+□ Enable: /etc/init.d/awg-watchdog enable && start
+```
+
+**Failover behavior:**
+- Monitors connectivity by pinging through tunnel
+- After 3 consecutive failures → switches to next server
+- Cycles through all servers until one works
+- After 10 successful checks → attempts failback to primary
+- Kill switch maintained during failover (no traffic leaks)
+
+**Other reliability components:**
+```
+□ Hotplug script installed (auto-start on WAN up)
 □ Boot persistence configured
 □ IPv6 disabled at all levels
+□ Optional: cron jobs for backup/log rotation
 ```
 
 ### 4.6 Cutover
@@ -545,12 +582,14 @@ ip route add default dev awg0
 **Agent Strategy:**
 ```bash
 # Resolve hostname to IP during config generation
-nslookup us-nyc-wg-001.relays.mullvad.net
+nslookup us-nyc-wg-001.relays.mullvad.net  # Example Mullvad hostname
+# Or for other providers:
+nslookup [your-provider-server].example.com
 
-# Use the IP in config, NOT the hostname
+# Use the resolved IP in config, NOT the hostname
 # awg0.conf:
-Endpoint = 185.213.154.68:51820  # ✓ IP address
-# NOT: Endpoint = us-nyc-wg-001.relays.mullvad.net:51820  # ✗ hostname
+Endpoint = 203.0.113.50:51820  # ✓ IP address (use actual resolved IP)
+# NOT: Endpoint = server.vpnprovider.com:51820  # ✗ hostname
 ```
 
 ### 6. AmneziaWG Packages Not Found
