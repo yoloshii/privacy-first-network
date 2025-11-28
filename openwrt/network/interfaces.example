@@ -26,8 +26,9 @@ config interface 'lan'
 	# Gateway IP - this will be the default gateway for all LAN devices
 	option ipaddr '192.168.1.1'
 	option netmask '255.255.255.0'
-	# DNS for the router itself (use VPN provider's DNS)
-	option dns '100.64.0.4'
+	# DNS for the router itself (use your VPN provider's DNS)
+	# Examples: Mullvad=100.64.0.4, IVPN=10.0.254.1, Proton=10.2.0.1
+	option dns 'VPN_PROVIDER_DNS_IP'
 	# Disable IPv6 to prevent leaks
 	option ip6assign ''
 
