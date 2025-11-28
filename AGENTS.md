@@ -187,14 +187,10 @@ Use these example configs, substituting user-specific values:
 | DHCP config | `openwrt/dhcp/dhcp.example` | ✓ | DNS push to clients |
 | VPN tunnel (generic) | `openwrt/amneziawg/awg0.conf.example` | ✓ | Any WireGuard provider |
 | VPN tunnel (Mullvad) | `openwrt/amneziawg/mullvad-awg0.conf.example` | ✓ | Mullvad-optimized |
-| **Watchdog (basic)** | `scripts/awg-watchdog.sh` | ✓ | Simple auto-recovery |
-| **Watchdog (failover)** | `scripts/awg-watchdog-failover.sh` | ✓ | Multi-server failover + failback |
+| **Watchdog (failover)** | `openwrt/amneziawg/awg-watchdog.sh` | ✓ | Multi-server failover + failback |
 | Server list (failover) | `openwrt/amneziawg/servers.conf.example` | ✓ | For failover watchdog |
-| Hotplug script | `openwrt/hotplug.d/99-awg` | ✓ | WAN-up trigger |
-| **Init script (OpenWrt)** | `openwrt/init.d/awg-watchdog` | ✓ | Boot persistence (procd) |
-| Systemd service (AWG) | `scripts/awg-watchdog.service` | | Linux systemd |
-| Auto-backup script | `scripts/auto-backup.sh` | | Daily config backup |
-| Log rotation | `scripts/rotate-watchdog-log.sh` | | Prevent log bloat |
+| Hotplug script | `openwrt/amneziawg/99-awg.hotplug` | ✓ | WAN-up auto-start |
+| **Init script (OpenWrt)** | `openwrt/amneziawg/awg-watchdog.init` | ✓ | Boot persistence (procd) |
 | Cron jobs | `openwrt/crontab.example` | | Scheduled tasks |
 | **Optional Addons (ask user in 1.5)** | | | |
 | AdGuard Home (generic) | `adguard/AdGuardHome.yaml.example` | | Any upstream DNS |
