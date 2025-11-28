@@ -8,7 +8,7 @@ You are assisting a user in deploying a network-wide VPN privacy router. This do
 
 Help the user deploy a privacy router that:
 1. Routes ALL network traffic through an encrypted VPN tunnel
-2. Implements a hardware-level kill switch (no traffic leaks)
+2. Implements a firewall-based kill switch (no traffic leaks)
 3. Automatically recovers from failures
 4. **Optional:** DNS-level ad/tracker blocking (AdGuard Home)
 5. **Optional:** Threat intelligence blocking (BanIP)
