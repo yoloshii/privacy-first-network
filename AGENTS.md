@@ -177,6 +177,15 @@ Based on audit results, create a customized plan using these references:
 
 ### Implementation Templates
 
+> **CRITICAL: These are EXAMPLES, not drop-in solutions.**
+>
+> Every script and config must be adapted to the user's unique environment:
+> 1. **Research** - Validate assumptions (network topology, provider specifics, hardware)
+> 2. **Adapt** - Modify placeholders AND logic to fit user's scenario
+> 3. **Test** - Verify each component before proceeding to the next
+>
+> Never assume example values are correct for the user's setup.
+
 Use these example configs, substituting user-specific values:
 
 | Template | Location | Tested | Notes |
