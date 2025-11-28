@@ -81,7 +81,7 @@ amneziawg show awg0
 **Symptoms:**
 - Handshake successful
 - `ping 1.1.1.1` fails through awg0
-- `curl am.i.mullvad.net` times out
+- `curl ipinfo.io/ip` times out (or provider test like `am.i.mullvad.net`)
 
 **Diagnosis:**
 
@@ -165,8 +165,9 @@ cat /etc/resolv.conf
 # Test AdGuard directly
 nslookup google.com 192.168.1.5
 
-# Test upstream
-nslookup google.com 100.64.0.4
+# Test upstream (use your VPN provider's DNS)
+# Mullvad: 100.64.0.4 | IVPN: 10.0.254.1 | Proton: 10.2.0.1
+nslookup google.com VPN_PROVIDER_DNS_IP
 ```
 
 **Solutions:**
@@ -196,8 +197,9 @@ nslookup google.com 100.64.0.4
 
 3. **AdGuard upstream unreachable:**
    ```bash
-   # Test DoH upstream
-   curl -v 'https://adblock.dns.mullvad.net/dns-query?dns=AAABAAABAAAAAAAA'
+   # Test DoH upstream (use your provider's DoH URL)
+   # Mullvad: adblock.dns.mullvad.net | IVPN: dns.ivpn.net | Proton: dns.protonvpn.net
+   curl -v 'https://YOUR_PROVIDER_DOH_HOST/dns-query?dns=AAABAAABAAAAAAAA'
 
    # If fails, VPN might be down
    # Check VPN first
@@ -251,7 +253,8 @@ nslookup google.com 100.64.0.4
    uci show network | grep dns
 
    # Fix: Set to VPN provider DNS
-   uci set network.lan.dns='100.64.0.4'
+   # Mullvad: 100.64.0.4 | IVPN: 10.0.254.1 | Proton: 10.2.0.1
+   uci set network.lan.dns='VPN_PROVIDER_DNS_IP'
    uci commit network
    /etc/init.d/network restart
    ```
@@ -603,11 +606,12 @@ ping -c 5 1.1.1.1
 # Ping through VPN interface
 ping -c 5 -I awg0 1.1.1.1
 
-# Check external IP
+# Check external IP (should show VPN exit IP, not ISP IP)
 curl ifconfig.me
+curl ipinfo.io/ip
 
-# Full VPN check
-curl https://am.i.mullvad.net/connected
+# Provider-specific VPN check (Mullvad only)
+# curl https://am.i.mullvad.net/connected
 
 # DNS leak test
 curl https://bash.ws/dnsleak/test/
