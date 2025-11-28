@@ -1,6 +1,6 @@
 # Privacy Router Stack
 
-**Whole-home VPN router with hardware kill switch** - Protect every device on your network with OpenWrt, WireGuard, and AmneziaWG. No apps required.
+**Whole-home VPN router with network-level kill switch** - Protect every device on your network with OpenWrt, WireGuard, and AmneziaWG. No apps required.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![OpenWrt](https://img.shields.io/badge/OpenWrt-23.05+-00B5E2.svg)](https://openwrt.org/)
@@ -15,7 +15,7 @@
 Turn a Raspberry Pi or mini PC into a VPN gateway that protects your entire home network:
 
 - ✅ **All devices protected** - Smart TVs, consoles, IoT, phones, laptops, guests
-- ✅ **Hardware kill switch** - Firewall-level failsafe, not software
+- ✅ **Firewall kill switch** - Router-level failsafe blocks traffic if VPN drops
 - ✅ **DPI bypass** - AmneziaWG defeats VPN blocking in restrictive networks
 - ✅ **DNS encryption** - AdGuard Home with DNS-over-HTTPS
 - ✅ **Auto-recovery** - Watchdog restarts tunnel on failure
