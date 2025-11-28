@@ -1,0 +1,43 @@
+# =============================================================================
+# AmneziaWG Server List for Failover
+# =============================================================================
+#
+# Format: NAME ENDPOINT_IP PORT PUBLIC_KEY
+#
+# - NAME: Friendly name for logging
+# - ENDPOINT_IP: Server IP address (not hostname)
+# - PORT: WireGuard port (usually 51820)
+# - PUBLIC_KEY: Server's public key (use "-" if same as base config)
+#
+# First server is PRIMARY - watchdog will failback to it when available
+# Order matters - servers are tried in sequence during failover
+#
+# Get server list from your VPN provider:
+# - Mullvad: https://mullvad.net/en/servers
+# - IVPN: https://www.ivpn.net/status
+#
+# =============================================================================
+
+# Primary server (preferred)
+us-lax-wg-001   CHANGE_ME_IP   51820   CHANGE_ME_PUBKEY
+
+# Failover servers (same region recommended for latency)
+us-lax-wg-002   CHANGE_ME_IP   51820   CHANGE_ME_PUBKEY
+us-lax-wg-003   CHANGE_ME_IP   51820   CHANGE_ME_PUBKEY
+
+# Backup region (different city)
+us-sjc-wg-001   CHANGE_ME_IP   51820   CHANGE_ME_PUBKEY
+us-sea-wg-001   CHANGE_ME_IP   51820   CHANGE_ME_PUBKEY
+
+# =============================================================================
+# Example with real Mullvad servers (replace public keys):
+# =============================================================================
+#
+# us-lax-wg-203   169.150.203.28    51820   W6/Yamxmfx3geWTwwtBbJe/J8UdEzOfa6M+cEpNPIwg=
+# us-lax-wg-201   169.150.203.24    51820   -
+# us-lax-wg-202   169.150.203.26    51820   -
+# us-sjc-wg-001   169.150.238.10    51820   -
+# us-sea-wg-001   91.90.124.10      51820   -
+#
+# Note: Use "-" for PUBLIC_KEY if all servers use the same key as your base config
+# =============================================================================

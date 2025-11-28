@@ -1,16 +1,19 @@
 #!/bin/sh
 # =============================================================================
-# AmneziaWG Watchdog - Connectivity Monitor with Auto-Recovery
+# AmneziaWG Watchdog - Basic Connectivity Monitor with Auto-Recovery
 # =============================================================================
 #
-# Monitors VPN tunnel health and automatically restarts on failure.
+# Simple watchdog that monitors VPN tunnel health and restarts on failure.
 # Designed for OpenWrt but works on any Linux with AmneziaWG.
+#
+# For ADVANCED features (server failover, failback to primary), see:
+#   scripts/awg-watchdog-failover.sh
 #
 # Installation:
 #   1. Copy to /etc/awg-watchdog.sh
 #   2. chmod +x /etc/awg-watchdog.sh
 #   3. Edit configuration section below
-#   4. Add to startup (rc.local or init script)
+#   4. Create init script (see openwrt/init.d/awg-watchdog)
 #
 # Usage:
 #   /etc/awg-watchdog.sh &
