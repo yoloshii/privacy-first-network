@@ -115,7 +115,7 @@ Here's something most people don't realize: **VPN app kill switches often fail**
 
 When a VPN app crashes, loses connection, or during the moments between connection drops and reconnection, your traffic can leak to your ISP. App-based kill switches try to prevent this, but they operate at the application level - if the app itself crashes, the kill switch dies with it.
 
-**This stack implements a hardware-level kill switch:**
+**This stack implements a firewall-based kill switch:**
 
 ```
 Normal Operation:
@@ -136,7 +136,7 @@ The kill switch is implemented in the **firewall and routing table**, not in sof
 
 ### Core Protection (Required)
 - **Network-wide VPN** - All devices protected automatically
-- **Hardware kill switch** - No traffic leaks, ever
+- **Firewall kill switch** - No traffic leaks, ever
 - **IPv6 leak prevention** - IPv6 completely disabled
 
 ### Reliability (Required)
@@ -318,7 +318,7 @@ Kill Switch:
 | IoT devices | ❌ | ✓ |
 | Battery impact | Yes | None |
 | Can be disabled | By user | No |
-| Kill switch reliability | App-dependent | Hardware-level |
+| Kill switch reliability | App-dependent | Firewall-based |
 | DNS leak protection | Varies | Guaranteed |
 | DPI bypass | Some apps | AmneziaWG |
 | Setup complexity | Low | Medium |
