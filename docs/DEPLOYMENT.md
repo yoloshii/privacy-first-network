@@ -234,11 +234,11 @@ sudo systemctl status adguardhome
 ```
 
 **Configuration values you need:**
-| Variable | Description | Example (Mullvad) |
-|----------|-------------|-------------------|
-| `VPN_IP` | Your VPN internal IP (from provider config) | `10.64.123.45/32` |
-| `ENDPOINT_IP` | VPN server IP address | `185.213.154.68` |
-| `WAN_GATEWAY` | Usually "auto" (auto-detected) | `auto` or `192.168.1.1` |
+| Variable | Description | Where to Find |
+|----------|-------------|---------------|
+| `VPN_IP` | Your VPN internal IP | Provider config (e.g., `10.64.x.x/32` for Mullvad) |
+| `ENDPOINT_IP` | VPN server IP address | Resolve provider hostname or server list |
+| `WAN_GATEWAY` | Usually "auto" (auto-detected) | `auto` or your modem's IP (e.g., `192.168.1.1`) |
 
 ### A7. Test VPN Manually
 
@@ -310,10 +310,14 @@ In AdGuard web UI (Settings → DNS Settings → Upstream DNS):
 
 ```
 # Use DNS-over-HTTPS to your VPN provider
-https://adblock.dns.mullvad.net/dns-query
+# Mullvad: https://adblock.dns.mullvad.net/dns-query
+# IVPN: https://dns.ivpn.net/dns-query
+# Proton: https://dns.protonvpn.net/dns-query
+https://YOUR_PROVIDER_DOH_URL/dns-query
 
 # Or use VPN provider's plain DNS (if inside VPN tunnel)
-100.64.0.4
+# Mullvad: 100.64.0.4 | IVPN: 10.0.254.1 | Proton: 10.2.0.1
+VPN_PROVIDER_DNS_IP
 ```
 
 Enable:

@@ -110,8 +110,9 @@ config interface 'lan'
     option ipaddr '192.168.1.1'
     option netmask '255.255.255.0'
     option ip6assign '60'
-    # Router's own DNS (VPN provider's DNS)
-    option dns '100.64.0.4'
+    # Router's own DNS (use your VPN provider's DNS)
+    # Mullvad: 100.64.0.4 | IVPN: 10.0.254.1 | Proton: 10.2.0.1
+    option dns 'VPN_PROVIDER_DNS_IP'
 ```
 
 | Option | Description | Example |
@@ -120,7 +121,7 @@ config interface 'lan'
 | `proto` | Protocol (static/dhcp) | `static` |
 | `ipaddr` | Gateway IP address | `192.168.1.1` |
 | `netmask` | Subnet mask | `255.255.255.0` |
-| `dns` | DNS servers for router | `100.64.0.4` |
+| `dns` | DNS servers for router | Provider DNS IP |
 
 ### WAN Interface
 
