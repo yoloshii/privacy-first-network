@@ -458,17 +458,16 @@ PersistentKeepalive = 25
 
 ### Mullvad Server Selection
 
-Choose a server close to user's location from https://mullvad.net/en/servers
+Use the user's preferred server. If they need guidance:
 
-Common endpoints (verify current IPs):
-- `au-mel-wg-001` - Melbourne, Australia
-- `au-syd-wg-001` - Sydney, Australia
-- `us-nyc-wg-001` - New York, USA
-- `us-lax-wg-001` - Los Angeles, USA
-- `gb-lon-wg-001` - London, UK
-- `de-fra-wg-001` - Frankfurt, Germany
-- `sg-sin-wg-001` - Singapore
-- `jp-tyo-wg-001` - Tokyo, Japan
+1. **Target country first** — The goal is appearing in a specific jurisdiction
+2. **Lowest latency in that country** — Usually the city closest to user's physical location
+3. **Failover-friendly cities** — Choose cities with multiple servers (e.g., `us-lax-wg-001` through `005`) so failover works with a single public key
+
+Server list: https://mullvad.net/en/servers
+
+> **Failover tip:** Same-city servers share one public key. Pick a city with 3+ servers
+> to enable failover without configuring multiple keys.
 
 ### Mullvad DNS Options
 
