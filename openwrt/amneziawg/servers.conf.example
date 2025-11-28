@@ -30,14 +30,15 @@ us-sjc-wg-001   CHANGE_ME_IP   51820   CHANGE_ME_PUBKEY
 us-sea-wg-001   CHANGE_ME_IP   51820   CHANGE_ME_PUBKEY
 
 # =============================================================================
-# Example with real Mullvad servers (replace public keys):
+# Example format (get actual IPs from your VPN provider):
 # =============================================================================
 #
-# us-lax-wg-203   169.150.203.28    51820   W6/Yamxmfx3geWTwwtBbJe/J8UdEzOfa6M+cEpNPIwg=
-# us-lax-wg-201   169.150.203.24    51820   -
-# us-lax-wg-202   169.150.203.26    51820   -
-# us-sjc-wg-001   169.150.238.10    51820   -
-# us-sea-wg-001   91.90.124.10      51820   -
+# server-region1-001   203.0.113.10    51820   YOUR_PROVIDERS_PUBLIC_KEY
+# server-region1-002   203.0.113.11    51820   -
+# server-region1-003   203.0.113.12    51820   -
+# server-region2-001   198.51.100.10   51820   -
+# server-region2-002   198.51.100.11   51820   -
 #
 # Note: Use "-" for PUBLIC_KEY if all servers use the same key as your base config
+# IPs above are RFC 5737 documentation ranges - replace with real server IPs
 # =============================================================================
