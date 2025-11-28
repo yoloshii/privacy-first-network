@@ -179,28 +179,30 @@ Based on audit results, create a customized plan using these references:
 
 Use these example configs, substituting user-specific values:
 
-| Template | Location | Notes |
-|----------|----------|-------|
-| **Core (Required)** | | |
-| Network interfaces | `openwrt/network/interfaces.example` | Generic OpenWrt |
-| Firewall zones | `openwrt/firewall/zones.example` | Kill switch architecture |
-| DHCP config | `openwrt/dhcp/dhcp.example` | DNS push to clients |
-| VPN tunnel (generic) | `openwrt/amneziawg/awg0.conf.example` | Any WireGuard provider |
-| **VPN tunnel (Mullvad)** | `openwrt/amneziawg/mullvad-awg0.conf.example` | Mullvad-optimized |
-| **Watchdog (basic)** | `scripts/awg-watchdog.sh` | Simple auto-recovery |
-| **Watchdog (failover)** | `scripts/awg-watchdog-failover.sh` | Multi-server failover + failback |
-| Server list (failover) | `openwrt/amneziawg/servers.conf.example` | For failover watchdog |
-| Hotplug script | `openwrt/hotplug.d/99-awg` | WAN-up trigger |
-| **Init script (OpenWrt)** | `openwrt/init.d/awg-watchdog` | Boot persistence (procd) |
-| **Systemd service (AWG)** | `scripts/awg-watchdog.service` | Linux systemd |
-| Auto-backup script | `scripts/auto-backup.sh` | Daily config backup |
-| Log rotation | `scripts/rotate-watchdog-log.sh` | Prevent log bloat |
-| Cron jobs | `openwrt/crontab.example` | Scheduled tasks |
-| **Optional Addons (ask user in 1.5)** | | |
-| AdGuard Home (generic) | `adguard/AdGuardHome.yaml.example` | Any upstream DNS |
-| AdGuard Home (Mullvad) | `adguard/mullvad-AdGuardHome.yaml.example` | Mullvad DoH |
-| Systemd service (AdGuard) | `scripts/adguardhome.service` | Linux systemd |
-| BanIP config | `openwrt/banip/banip.example` | Threat intelligence |
+| Template | Location | Tested | Notes |
+|----------|----------|:------:|-------|
+| **Core (Required)** | | | |
+| Network interfaces | `openwrt/network/interfaces.example` | ✓ | Generic OpenWrt |
+| Firewall zones | `openwrt/firewall/zones.example` | ✓ | Kill switch architecture |
+| DHCP config | `openwrt/dhcp/dhcp.example` | ✓ | DNS push to clients |
+| VPN tunnel (generic) | `openwrt/amneziawg/awg0.conf.example` | ✓ | Any WireGuard provider |
+| VPN tunnel (Mullvad) | `openwrt/amneziawg/mullvad-awg0.conf.example` | ✓ | Mullvad-optimized |
+| **Watchdog (basic)** | `scripts/awg-watchdog.sh` | ✓ | Simple auto-recovery |
+| **Watchdog (failover)** | `scripts/awg-watchdog-failover.sh` | ✓ | Multi-server failover + failback |
+| Server list (failover) | `openwrt/amneziawg/servers.conf.example` | ✓ | For failover watchdog |
+| Hotplug script | `openwrt/hotplug.d/99-awg` | ✓ | WAN-up trigger |
+| **Init script (OpenWrt)** | `openwrt/init.d/awg-watchdog` | ✓ | Boot persistence (procd) |
+| Systemd service (AWG) | `scripts/awg-watchdog.service` | | Linux systemd |
+| Auto-backup script | `scripts/auto-backup.sh` | | Daily config backup |
+| Log rotation | `scripts/rotate-watchdog-log.sh` | | Prevent log bloat |
+| Cron jobs | `openwrt/crontab.example` | | Scheduled tasks |
+| **Optional Addons (ask user in 1.5)** | | | |
+| AdGuard Home (generic) | `adguard/AdGuardHome.yaml.example` | | Any upstream DNS |
+| AdGuard Home (Mullvad) | `adguard/mullvad-AdGuardHome.yaml.example` | | Mullvad DoH |
+| Systemd service (AdGuard) | `scripts/adguardhome.service` | | Linux systemd |
+| BanIP config | `openwrt/banip/banip.example` | | Threat intelligence |
+
+> **Tested column:** ✓ = Production-tested on Raspberry Pi 5 with OpenWrt 23.05 and Mullvad VPN
 
 ---
 
@@ -237,9 +239,11 @@ opkg install /tmp/amneziawg-tools_*.ipk
 □ AmneziaWG packages installed (kmod-amneziawg, amneziawg-tools)
 □ Config file created at /etc/amneziawg/awg0.conf
 □ Permissions set (chmod 600)
-□ Manual tunnel test successful
+□ Manual tunnel test successful (optional if using watchdog*)
 □ VPN exit IP confirmed
 ```
+
+> *The watchdog scripts handle route setup automatically. Manual testing (see Quick Reference at end) is useful for troubleshooting but not required if proceeding directly to Section 4.5 (Reliability).
 
 **Mullvad verification:**
 ```bash
@@ -307,10 +311,15 @@ Verification (with AdGuard):
 
 Configure OpenWrt to use VPN provider's DNS directly:
 ```bash
-# Replace with your VPN provider's DNS IP
+# Set router's own DNS resolver (for router itself)
 # Mullvad: 100.64.0.4 | IVPN: 10.0.254.1 | Proton: 10.2.0.1
-uci set dhcp.@dnsmasq[0].server='VPN_PROVIDER_DNS_IP'
+uci set network.lan.dns='VPN_PROVIDER_DNS_IP'
+uci commit network
+
+# Push DNS to DHCP clients
+uci add_list dhcp.lan.dhcp_option='6,VPN_PROVIDER_DNS_IP'
 uci commit dhcp
+/etc/init.d/network restart
 /etc/init.d/dnsmasq restart
 ```
 
@@ -337,13 +346,27 @@ Verification (without AdGuard):
 ```
 □ Copy to /etc/awg-watchdog.sh
 □ Configure VPN_IP
-□ Create server list: /etc/amneziawg/servers.conf (from servers.conf.example)
-   - Add 3-5 servers from same region for low latency
-   - First server = primary (watchdog will failback to it)
-   - Get server IPs from your VPN provider
+□ Create server list: /etc/amneziawg/servers.conf
 □ Install init script (openwrt/init.d/awg-watchdog)
 □ Enable: /etc/init.d/awg-watchdog enable && start
 ```
+
+**servers.conf format:**
+```
+# Format: NAME ENDPOINT_IP PORT PUBLIC_KEY
+# First server = primary (watchdog failsback to it)
+# Use "-" for PUBLIC_KEY if same as base awg0.conf
+
+server-region1-001   203.0.113.10    51820   YOUR_PROVIDERS_PUBLIC_KEY
+server-region1-002   203.0.113.11    51820   -
+server-region1-003   203.0.113.12    51820   -
+server-region2-001   198.51.100.10   51820   -
+```
+
+Guidelines:
+- Add 3-5 servers from same region for low latency
+- Get server IPs from your VPN provider (resolve hostnames to IPs)
+- See `servers.conf.example` for full documentation
 
 **Failover behavior:**
 - Monitors connectivity by pinging through tunnel
