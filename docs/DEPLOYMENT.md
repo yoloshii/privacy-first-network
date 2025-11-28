@@ -17,7 +17,6 @@ Step-by-step instructions for deploying the privacy router stack.
 - Raspberry Pi 4/5
 - x86/x64 mini PC
 - Virtual machine (any hypervisor)
-- Docker (alternative deployment)
 
 ### Software Requirements
 
@@ -41,7 +40,6 @@ Choose your deployment path:
 |--------|------------|----------|
 | [A. Dedicated Hardware](#option-a-dedicated-hardware) | Easy | Most users, best reliability |
 | [B. Virtual Machine](#option-b-virtual-machine) | Medium | Homelab, enterprise, existing servers |
-| [C. Docker](#option-c-docker) | Medium | Quick testing, container users |
 
 ---
 
@@ -413,22 +411,6 @@ Ensure the AdGuard VM/container is on the LAN bridge so it can serve DNS to clie
 ### B3. Continue Setup
 
 Continue from [A4](#a4-configure-vpn-tunnel) onwards — the configuration is identical to dedicated hardware once OpenWrt is running.
-
----
-
-## Option C: Docker
-
-See `docker/` directory for Docker Compose setup.
-
-```bash
-cd docker/
-cp .env.example .env
-# Edit .env with your values
-
-docker-compose up -d
-```
-
-**Note:** Docker deployment has networking limitations. The container must run with `--net=host` or use macvlan networking for proper gateway functionality.
 
 ---
 
