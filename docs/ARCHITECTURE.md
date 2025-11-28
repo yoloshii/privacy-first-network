@@ -1,6 +1,6 @@
 # Privacy Router Architecture
 
-A privacy-focused home router stack that routes all traffic through an obfuscated VPN tunnel with automatic failover, DNS-level ad blocking, and a hardware kill switch.
+A privacy-focused home router stack that routes all traffic through an obfuscated VPN tunnel with automatic failover, DNS-level ad blocking, and a firewall-based kill switch.
 
 ## Overview
 

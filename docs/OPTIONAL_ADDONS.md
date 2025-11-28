@@ -1,6 +1,6 @@
 # Optional Security Addons
 
-The core privacy router provides VPN tunneling with a hardware kill switch. These optional addons enhance security and privacy but are **not required** for basic operation.
+The core privacy router provides VPN tunneling with a firewall-based kill switch. These optional addons enhance security and privacy but are **not required** for basic operation.
 
 ---
 
