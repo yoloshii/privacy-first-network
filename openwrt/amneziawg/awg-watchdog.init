@@ -1,0 +1,36 @@
+#!/bin/sh /etc/rc.common
+# =============================================================================
+# AmneziaWG Watchdog - procd init script
+# =============================================================================
+#
+# Installation:
+#   1. Copy to /etc/init.d/awg-watchdog
+#   2. chmod +x /etc/init.d/awg-watchdog
+#   3. /etc/init.d/awg-watchdog enable
+#   4. /etc/init.d/awg-watchdog start
+#
+# Management:
+#   /etc/init.d/awg-watchdog start    # Start watchdog
+#   /etc/init.d/awg-watchdog stop     # Stop watchdog
+#   /etc/init.d/awg-watchdog restart  # Restart watchdog
+#   /etc/init.d/awg-watchdog status   # Check if running
+#
+# Logs:
+#   logread -e awg-watchdog           # View syslog entries
+#   tail -f /var/log/awg-watchdog.log # View detailed log
+#
+# =============================================================================
+
+START=99
+STOP=10
+
+USE_PROCD=1
+
+start_service() {
+    procd_open_instance
+    procd_set_param command /etc/awg-watchdog.sh
+    procd_set_param respawn
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_close_instance
+}
