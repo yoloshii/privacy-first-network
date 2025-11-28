@@ -458,16 +458,9 @@ PersistentKeepalive = 25
 
 ### Mullvad Server Selection
 
-Use the user's preferred server. If they need guidance:
+Assume the user knows which server(s) they want. Server list: https://mullvad.net/en/servers
 
-1. **Target country first** — The goal is appearing in a specific jurisdiction
-2. **Lowest latency in that country** — Usually the city closest to user's physical location
-3. **Failover-friendly cities** — Choose cities with multiple servers (e.g., `us-lax-wg-001` through `005`) so failover works with a single public key
-
-Server list: https://mullvad.net/en/servers
-
-> **Failover tip:** Same-city servers share one public key. Pick a city with 3+ servers
-> to enable failover without configuring multiple keys.
+> **Failover note:** Same-city servers share one public key — simplifies multi-server failover config.
 
 ### Mullvad DNS Options
 
