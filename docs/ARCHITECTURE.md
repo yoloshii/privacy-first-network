@@ -282,17 +282,6 @@ Internet → Modem → [Hypervisor Host] → WiFi AP → Devices
 **Pros:** Leverage existing hardware, easy snapshots/backups, flexible resources
 **Cons:** More complex networking (requires bridged NICs), hypervisor dependency
 
-### Option C: Docker (Testing/Simple Setups)
-
-```
-Internet → Modem → [Linux Host with Docker] → WiFi AP → Devices
-                   ├── WireGuard container
-                   └── AdGuard container
-```
-
-**Pros:** Easy deployment, portable, quick testing
-**Cons:** Less control, container networking complexity, requires host network mode
-
 ## Requirements
 
 ### Hardware

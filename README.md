@@ -245,7 +245,7 @@ If your VPN works fine with regular WireGuard, you can use standard WireGuard in
 
 **Detailed instructions:** [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 
-> **Docker option coming soon:** A Docker deployment (Option C) is in testing for users who prefer containers. This is entirely optional - not required or recommended over Options A/B. If you're using an AI assistant, it can guide you through Docker setup even if container networking is unfamiliar.
+> **Advanced users:** A Docker deployment option exists for users comfortable with container networking. See [Option C: Docker](docker/README.md). This is **not recommended** for most users - dedicated hardware or VM deployments provide better reliability and simpler troubleshooting.
 
 ---
 
@@ -256,6 +256,7 @@ If your VPN works fine with regular WireGuard, you can use standard WireGuard in
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, components, security model |
 | [HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) | Deep technical dive into every component |
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Step-by-step installation guide |
+| [docker/README.md](docker/README.md) | Docker deployment (advanced users) |
 | [CONFIGURATION.md](docs/CONFIGURATION.md) | Complete configuration reference |
 | [OPTIONAL_ADDONS.md](docs/OPTIONAL_ADDONS.md) | AdGuard Home, BanIP, and other security addons |
 | [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and solutions |

@@ -38,8 +38,11 @@ Choose your deployment path:
 
 | Option | Difficulty | Best For |
 |--------|------------|----------|
-| [A. Dedicated Hardware](#option-a-dedicated-hardware) | Easy | Most users, best reliability |
-| [B. Virtual Machine](#option-b-virtual-machine) | Medium | Homelab, enterprise, existing servers |
+| [A. Dedicated Hardware](#option-a-dedicated-hardware) | Easy | **Recommended** - Most users, best reliability |
+| [B. Virtual Machine](#option-b-virtual-machine) | Medium | Homelab, enterprise, existing hypervisors |
+| [C. Docker Container](#option-c-docker-container-optional) | Advanced | Optional - for users who prefer containers |
+
+> **Recommendation:** Options A and B are recommended. Option C (Docker) is entirely optional and provided only as a convenience for advanced users who prefer containers.
 
 ---
 
@@ -414,7 +417,88 @@ Ensure the AdGuard VM/container is on the LAN bridge so it can serve DNS to clie
 
 ### B3. Continue Setup
 
-Continue from [A4](#a4-configure-vpn-tunnel) onwards — the configuration is identical to dedicated hardware once OpenWrt is running.
+Continue from [A4](#a4-configure-vpn-tunnel) onwards - the configuration is identical to dedicated hardware once OpenWrt is running.
+
+---
+
+## Option C: Docker Container (Optional)
+
+> **This is entirely optional** - provided for users who prefer Docker. Options A and B are the recommended deployment methods. You do not need Docker to use this privacy router.
+
+> **For advanced users** familiar with macvlan networking, iptables, and container troubleshooting. If you're using an AI assistant (Claude, GPT, etc.), give it access to the `docker/` folder - the AI can guide you through setup even if Docker is unfamiliar.
+
+For users with an existing Docker host who want a container-based deployment with macvlan networking.
+
+### C1. Overview
+
+The Docker deployment provides:
+- **AmneziaWG VPN client** with kill switch
+- **AdGuard Home** for DNS filtering
+- **macvlan networking** for LAN gateway mode
+- **Auto-recovery watchdog** and health checks
+- **Comprehensive test suite** (10 tests including kill switch verification)
+
+```
+┌────────────────────────────────────────────────────┐
+│              Docker Host (Linux)                   │
+│  ┌──────────────────────────────────────────────┐  │
+│  │         privacy-router container             │  │
+│  │   AmneziaWG + AdGuard Home + Kill Switch     │  │
+│  └──────────────────┬───────────────────────────┘  │
+│                     │ macvlan (192.168.1.250)      │
+└─────────────────────┼──────────────────────────────┘
+                      │
+           LAN: 192.168.1.0/24
+```
+
+### C2. Prerequisites
+
+- Docker Engine 24.0+ with Compose V2
+- Linux host with kernel 5.6+ (for WireGuard)
+- LAN interface available for macvlan
+- VPN subscription with WireGuard/AmneziaWG support
+
+### C3. Quick Start
+
+```bash
+cd docker/
+
+# Copy templates
+cp .env.example .env
+cp config/awg0.conf.example config/awg0.conf
+
+# Edit with your values
+nano .env                    # Set VPN_IP, VPN_ENDPOINT_IP, network config
+nano config/awg0.conf        # Set PrivateKey, PublicKey
+
+# Deploy
+docker compose up -d
+
+# Verify (quick check)
+docker exec privacy-router /opt/scripts/quick-test.sh
+
+# Full validation (includes kill switch test)
+docker exec privacy-router /opt/scripts/test-suite.sh
+```
+
+### C4. Configure LAN Clients
+
+Point devices to use the container as gateway and DNS:
+
+| Setting | Value |
+|---------|-------|
+| Gateway | 192.168.1.250 (CONTAINER_LAN_IP) |
+| DNS | 192.168.1.250 |
+
+Or configure your router's DHCP to distribute these settings.
+
+### C5. Full Documentation
+
+See **[docker/README.md](../docker/README.md)** for:
+- Complete configuration reference
+- Environment variables
+- Troubleshooting guide
+- Security notes
 
 ---
 

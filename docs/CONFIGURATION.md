@@ -451,41 +451,6 @@ Add to cron (`/etc/crontabs/root`):
 
 ---
 
-## Environment Variables
-
-For Docker deployment, create `.env` file:
-
-```bash
-# VPN Configuration
-VPN_PRIVATE_KEY=your_private_key_base64
-VPN_SERVER_PUBLIC_KEY=server_public_key_base64
-VPN_SERVER_ENDPOINT=vpn.example.com:51820
-VPN_INTERNAL_IP=10.x.x.x
-
-# AmneziaWG Obfuscation
-AWG_JC=4
-AWG_JMIN=40
-AWG_JMAX=70
-AWG_S1=0
-AWG_S2=0
-AWG_H1=1
-AWG_H2=2
-AWG_H3=3
-AWG_H4=4
-
-# Network Configuration
-LAN_SUBNET=192.168.1.0/24
-LAN_GATEWAY=192.168.1.1
-DNS_SERVER=192.168.1.5
-
-# AdGuard Configuration
-ADGUARD_PORT=3000
-ADGUARD_DNS_PORT=53
-ADGUARD_UPSTREAM=https://adblock.dns.mullvad.net/dns-query
-```
-
----
-
 ## Quick Reference
 
 ### Essential Files

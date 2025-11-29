@@ -1,0 +1,144 @@
+# =============================================================================
+# Privacy Router - Docker Deployment
+# =============================================================================
+# Routes ALL LAN traffic through AmneziaWG VPN with AdGuard DNS filtering
+#
+# Quick Start:
+#   1. cp .env.example .env && nano .env
+#   2. cp config/awg0.conf.example config/awg0.conf && nano config/awg0.conf
+#   3. docker compose up -d
+#   4. docker exec privacy-router /opt/scripts/test-suite.sh
+#
+# LAN Gateway Setup:
+#   Set your devices' gateway to ${CONTAINER_LAN_IP} (default: 192.168.1.5)
+#   Set your devices' DNS to ${CONTAINER_LAN_IP}
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # AmneziaWG VPN Client + Gateway
+  # ---------------------------------------------------------------------------
+  privacy-router:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: privacy-router:latest
+    container_name: privacy-router
+    hostname: privacy-router
+    restart: unless-stopped
+
+    # Required capabilities for VPN tunnel and routing
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+
+    # TUN device for VPN tunnel
+    devices:
+      - /dev/net/tun:/dev/net/tun
+
+    # Kernel parameters for routing and security
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv4.ip_forward=1
+      - net.ipv6.conf.all.disable_ipv6=1
+      - net.ipv6.conf.default.disable_ipv6=1
+
+    environment:
+      # VPN Configuration (from your provider)
+      - VPN_IP=${VPN_IP:?VPN_IP required - your VPN internal IP}
+      - VPN_ENDPOINT_IP=${VPN_ENDPOINT_IP:?VPN_ENDPOINT_IP required}
+      - VPN_ENDPOINT_PORT=${VPN_ENDPOINT_PORT:-51820}
+
+      # Network Configuration
+      - LAN_SUBNET=${LAN_SUBNET:-192.168.1.0/24}
+      - LAN_GATEWAY=${LAN_GATEWAY:-192.168.1.1}
+
+      # Watchdog Configuration
+      - WATCHDOG_ENABLED=${WATCHDOG_ENABLED:-true}
+      - WATCHDOG_INTERVAL=${WATCHDOG_INTERVAL:-30}
+      - WATCHDOG_FAIL_THRESHOLD=${WATCHDOG_FAIL_THRESHOLD:-3}
+      - PROBE_TARGETS=${PROBE_TARGETS:-1.1.1.1 8.8.8.8 9.9.9.9}
+
+      # General
+      - TZ=${TZ:-UTC}
+
+    volumes:
+      # VPN configuration (read-only for security)
+      - ./config/awg0.conf:/etc/amneziawg/awg0.conf:ro
+      - ./config/postup.sh:/etc/amneziawg/postup.sh:ro
+      - ./config/predown.sh:/etc/amneziawg/predown.sh:ro
+
+      # Logs (persistent)
+      - privacy_router_logs:/var/log
+
+    networks:
+      # Internal network for container communication
+      vpn_internal:
+        ipv4_address: 172.20.0.2
+      # LAN-facing network (macvlan) for gateway functionality
+      lan:
+        ipv4_address: ${CONTAINER_LAN_IP:-192.168.1.5}
+
+    healthcheck:
+      test: ["CMD", "/opt/scripts/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ---------------------------------------------------------------------------
+  # AdGuard Home - DNS Filtering
+  # ---------------------------------------------------------------------------
+  adguard:
+    image: adguard/adguardhome:latest
+    container_name: adguard
+    # hostname removed - can't set when using network_mode: service
+    restart: unless-stopped
+
+    # Share network namespace with VPN container
+    # All AdGuard traffic routes through VPN automatically
+    network_mode: "service:privacy-router"
+
+    depends_on:
+      privacy-router:
+        condition: service_healthy
+
+    volumes:
+      - adguard_work:/opt/adguardhome/work
+      - adguard_conf:/opt/adguardhome/conf
+      # Optional: custom initial config
+      # - ./config/AdGuardHome.yaml:/opt/adguardhome/conf/AdGuardHome.yaml:ro
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  # Internal bridge network for container-to-container communication
+  vpn_internal:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+          gateway: 172.20.0.1
+
+  # macvlan network - gives container a real IP on your LAN
+  # Container appears as a separate device to LAN clients
+  lan:
+    driver: macvlan
+    driver_opts:
+      parent: ${LAN_INTERFACE:-eth0}
+    ipam:
+      config:
+        - subnet: ${LAN_SUBNET:-192.168.1.0/24}
+          gateway: ${LAN_GATEWAY:-192.168.1.1}
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  privacy_router_logs:
+    name: privacy_router_logs
+  adguard_work:
+    name: adguard_work
+  adguard_conf:
+    name: adguard_conf
