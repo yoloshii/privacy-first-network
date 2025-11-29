@@ -85,10 +85,7 @@ IF user is unsure or confused:
       entire network automatically and is the most straightforward setup."
 
 IF user has spare Pi/mini-PC:
-   → RECOMMEND Option A
-
-IF user has Proxmox/ESXi and wants dedicated router:
-   → RECOMMEND Option B
+   → RECOMMEND Option A (dedicated hardware)
 ```
 
 **Default recommendation is OpenWrt** — it's the optimal choice for most users. Docker is for users who explicitly want to add VPN capability to their existing router stack and know they want the container approach.
