@@ -753,7 +753,7 @@ If you encounter unfamiliar scenarios, research these topics:
 
 ## Common Pitfalls & Agent Workarounds
 
-**These are issues you WILL encounter. Plan for them.**
+**These are issues you will likely encounter. Plan for them.**
 
 ### 1. IP Address Conflict with Existing Router
 
