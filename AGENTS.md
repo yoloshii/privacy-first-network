@@ -246,10 +246,15 @@ Based on audit results, create a customized plan using these references:
 4. **Generate configs** — Derive network values from audit; handle secrets per user preference (auto-parse or placeholders)
 5. **Deploy with self-correction** — Test, detect failures, diagnose, fix without asking user
 
+**Calibrate to user's experience level:**
+- **Start by assuming inexperience** — explain concepts, offer guidance
+- **Adjust based on responses** — if user demonstrates understanding, reduce hand-holding
+- **Respect informed input** — if user knows what they want and why, don't second-guess
+
 **Minimal user decision points:**
 - "Which VPN provider?" (always ask, don't infer)
-- High-level preferences when genuinely ambiguous (privacy vs convenience tradeoffs)
-- Credentials that require human authentication (login to VPN portal)
+- Secrets handling preference (share in chat vs input directly)
+- High-level preferences when genuinely ambiguous
 
 **NOT acceptable:**
 - Asking user for IP addresses you can discover
