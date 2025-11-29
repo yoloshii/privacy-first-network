@@ -242,12 +242,12 @@ Based on audit results, create a customized plan using these references:
 **Your job as an agent:**
 1. **Audit autonomously** — Probe the network, detect topology, identify existing infrastructure
 2. **Recommend OpenWrt by default** — Docker only if user explicitly requests it
-3. **Interface with VPN providers directly** — Use APIs, scrape account pages, or guide user through automated setup
-4. **Generate configs automatically** — Derive all values from audit + VPN provider data
+3. **Guide user through VPN config retrieval** — Ask which provider, research how that provider delivers config files, guide user to retrieve them. If user consents to share secrets in chat, parse configs automatically; otherwise guide them to input secrets directly on target system
+4. **Generate configs** — Derive network values from audit; handle secrets per user preference (auto-parse or placeholders)
 5. **Deploy with self-correction** — Test, detect failures, diagnose, fix without asking user
 
 **Minimal user decision points:**
-- "Which VPN provider?" (or detect from existing config)
+- "Which VPN provider?" (always ask, don't infer)
 - High-level preferences when genuinely ambiguous (privacy vs convenience tradeoffs)
 - Credentials that require human authentication (login to VPN portal)
 
