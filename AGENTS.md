@@ -64,7 +64,7 @@ Use web research for values requiring up-to-date discovery:
 | User's private key | **ASK** - this is a secret |
 | VPN provider DNS | Research provider documentation |
 
-**The goal:** Minimize user prompts. Discover what's discoverable, research what's public, ask only for secrets.
+**The goal:** Minimize user prompts. Discover what's discoverable, research what's public, ask only for secrets (with user consent).
 
 ---
 
