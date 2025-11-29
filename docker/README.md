@@ -1,12 +1,37 @@
 # Privacy Router - Docker Deployment (Option C)
 
-> **This is entirely optional.** Most users should use [Option A (Dedicated Hardware)](../docs/DEPLOYMENT.md#option-a-dedicated-hardware) or [Option B (VM)](../docs/DEPLOYMENT.md#option-b-virtual-machine) instead. Docker is provided as a convenience for users who prefer containers - it is not required or recommended as the primary deployment method.
+## What This Is (And Isn't)
 
-> **For advanced users** familiar with Docker, macvlan networking, and iptables. If you're using an AI assistant (Claude, GPT, etc.), give it access to this `docker/` folder - the AI can guide you through setup even if Docker networking is new to you.
+**This is a VPN gateway add-on** - a container that provides VPN tunneling, kill switch, and DNS filtering. It runs on your existing Linux server, NAS, or VM.
 
-> **Status: Experimental** - Community testing and feedback welcome.
+**This is NOT a router replacement.** Unlike Options A & B (which deploy OpenWrt as a full router OS), this container doesn't do DHCP, WiFi, or general routing. Your existing router keeps those jobs.
 
-Deploy the privacy router stack using Docker with macvlan networking. This provides a container-based alternative to dedicated hardware (Option A) or VM deployment (Option B).
+| Feature | Options A/B (OpenWrt) | Option C (Docker) |
+|---------|----------------------|-------------------|
+| AmneziaWG obfuscation | ✅ | ✅ |
+| AdGuard DNS filtering | ✅ | ✅ |
+| Kill switch | ✅ | ✅ |
+| Watchdog recovery | ✅ | ✅ |
+| Replaces your router | ✅ Yes | ❌ No |
+| Runs on existing server | ❌ No | ✅ Yes |
+
+```
+How Option C fits into your network:
+
+Modem → [Your Existing Router] → All Devices
+                  ↓
+         [This Docker Container]
+         (on server/NAS/VM)
+
+Devices that want VPN protection point their gateway + DNS
+to the container's IP. Other devices use router normally.
+```
+
+> **Who should use this:** Users with an existing Linux server, NAS, or VM who want to add VPN protection without dedicated hardware. Comfortable with Docker and basic networking.
+
+> **Who should use Options A/B instead:** Users who want a dedicated privacy router appliance, or don't have a server to run Docker on. See [DEPLOYMENT.md](../docs/DEPLOYMENT.md).
+
+---
 
 ## Overview
 

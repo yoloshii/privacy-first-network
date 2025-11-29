@@ -235,17 +235,27 @@ If your VPN works fine with regular WireGuard, you can use standard WireGuard in
 
 ### Deployment Options
 
-Choose the deployment method that fits your setup:
+All options provide the **same core protection**: AmneziaWG obfuscation, AdGuard DNS filtering, kill switch, and watchdog recovery. The choice is about **how you want to deploy**, not what features you get.
 
-| Option | Platform | Best For |
-|--------|----------|----------|
-| **A: Dedicated Hardware** | OpenWrt on Pi/mini PC | Most users - simple, reliable, always-on |
-| **B: Virtual Machine** | OpenWrt on Proxmox/ESXi | Homelab users with existing hypervisors |
-| **C: Docker Container** | Alpine + macvlan | Users who prefer containers or need portability |
+| Option | What You're Deploying | Your Existing Router |
+|--------|----------------------|---------------------|
+| **A: Dedicated Hardware** | Full router OS (OpenWrt) on Pi/mini PC | Becomes WiFi access point only |
+| **B: Virtual Machine** | Full router OS (OpenWrt) on Proxmox/ESXi | Becomes WiFi access point only |
+| **C: Docker Container** | VPN gateway only (Alpine container) | Keeps all its current functions |
 
-**Options A & B** run OpenWrt with native AmneziaWG kernel module - maximum performance and simplest troubleshooting. Recommended for most users.
+**Options A & B (OpenWrt - Full Router Replacement):**
+You're deploying a complete router operating system. OpenWrt handles everything: routing, DHCP, DNS, firewall, VPN. Your existing router gets demoted to just a WiFi access point. This is a dedicated privacy router appliance.
 
-**Option C** runs in Docker with userspace WireGuard - ideal if you're comfortable with containers, want easy backup/restore, or need to run alongside other services on a single host.
+**Option C (Docker - VPN Gateway Add-on):**
+You're deploying just the VPN gateway piece on an existing Linux server, NAS, or VM. Your current router keeps doing its job (DHCP, WiFi, etc). Devices that want VPN protection point their gateway/DNS at the container. Good for adding VPN to existing infrastructure without new hardware.
+
+```
+Option A/B: Modem → [Privacy Router running OpenWrt] → WiFi AP → Devices
+Option C:   Modem → [Your Existing Router] → Devices
+                           ↓
+                    [Docker Container on Server/NAS]
+                    (devices point gateway here)
+```
 
 > **🤖 Not sure which to pick?** An AI agent can assess your setup and recommend the best option. Point it to [AGENTS.md](AGENTS.md) and let it guide you through deployment.
 

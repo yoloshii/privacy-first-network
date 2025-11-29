@@ -34,29 +34,60 @@ Ask the user or probe their system to determine:
 
 ### 1.2 Deployment Method (Ask User)
 
-**Present these options to the user and let them choose:**
+**IMPORTANT: Explain the architectural difference before the user chooses.**
 
-| Option | Platform | Best For | Complexity |
-|--------|----------|----------|------------|
-| **A: Dedicated Hardware** | OpenWrt on Pi/mini PC | Most users - reliable, always-on | Low |
-| **B: Virtual Machine** | OpenWrt on Proxmox/ESXi | Homelab with existing hypervisor | Medium |
-| **C: Docker Container** | Alpine + macvlan | Container fans, portability, easy backup | Medium |
+All options provide the **same core protection**: AmneziaWG obfuscation, AdGuard DNS filtering, kill switch, and watchdog recovery. The choice is about deployment architecture, not features.
 
-**Recommendation guidance:**
-- **Options A & B (OpenWrt):** Native kernel module, maximum performance, simpler troubleshooting. Recommended for most users.
-- **Option C (Docker):** Userspace WireGuard, runs alongside other services, easy backup/restore via container images. Good for users comfortable with Docker networking.
+**Explain this to the user:**
+
+| Option | What You're Deploying | What Happens to Existing Router |
+|--------|----------------------|--------------------------------|
+| **A: Dedicated Hardware** | Full router OS (OpenWrt) | Becomes WiFi access point only |
+| **B: Virtual Machine** | Full router OS (OpenWrt) | Becomes WiFi access point only |
+| **C: Docker Container** | VPN gateway only (Alpine) | Keeps all current functions |
+
+**Options A & B (OpenWrt - Full Router Replacement):**
+- Deploys a complete router operating system
+- OpenWrt handles everything: routing, DHCP, DNS, firewall, VPN
+- Existing router becomes just a WiFi access point
+- This IS the network's router
+- Requires dedicated hardware or VM with 2 NICs
+
+**Option C (Docker - VPN Gateway Add-on):**
+- Deploys just the VPN tunnel + kill switch
+- Runs on existing Linux server, NAS, or VM
+- Existing router keeps doing DHCP, WiFi, routing
+- Devices opt-in by pointing their gateway/DNS at the container
+- Does NOT replace your router
 
 ```
-□ Which deployment method does user prefer? (A/B/C)
-□ If A or B: Device needs TWO network interfaces (WAN + LAN)
-□ If A: What hardware? (Raspberry Pi 4/5, x86 mini PC, existing OpenWrt device)
-□ If B: Which hypervisor? (Proxmox, ESXi, Hyper-V)
-□ If C: Docker host OS and version?
+Network topology difference:
+
+Option A/B: Modem → [OpenWrt Privacy Router] → WiFi AP → All Devices Protected
+Option C:   Modem → [Existing Router] → Devices
+                           ↓
+                    [Docker on Server/NAS]
+                    (only devices pointing here are protected)
 ```
 
-**For single-NIC devices (Options A/B):** A USB Ethernet adapter is required.
+**Questions to ask:**
 
-**For Docker (Option C):** Host must support macvlan networking. See [docker/README.md](docker/README.md) for requirements.
+```
+□ "Do you want a dedicated privacy router that handles your entire network,
+   or add VPN protection to an existing server/NAS?"
+
+□ If dedicated router → Options A or B
+   □ Do you have spare hardware (Pi, mini PC)? → Option A
+   □ Do you have a hypervisor (Proxmox, ESXi)? → Option B
+
+□ If add-on to existing infrastructure → Option C
+   □ What's the Docker host? (Linux server, NAS, VM)
+   □ Does it have Docker installed?
+```
+
+**Hardware requirements:**
+- **Options A/B:** Device needs TWO network interfaces (WAN + LAN). Single-NIC devices need USB Ethernet adapter.
+- **Option C:** Any Docker host with macvlan support. See [docker/README.md](docker/README.md).
 
 ### 1.3 VPN Provider Details
 
