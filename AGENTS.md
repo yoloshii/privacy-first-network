@@ -71,24 +71,27 @@ Option C:   Modem → [Existing Router] → Devices
 **Recommendation logic:**
 
 ```
-IF user is confused or unsure:
-   → RECOMMEND OpenWrt (Option A or B based on available hardware)
+IF user explicitly asks for Docker:
+   → Option C
+
+IF user wants to add VPN to existing router (but doesn't specify how):
+   → Clarify: "Do you want this as a Docker container or a VM?"
+   → Either could be appropriate depending on their setup
+
+IF user is unsure or confused:
+   → Explain the architectural difference (router replacement vs add-on)
+   → RECOMMEND OpenWrt (Option A or B based on hardware)
    → "I recommend the dedicated privacy router approach - it protects your
       entire network automatically and is the most straightforward setup."
-   → Note: Docker option is for users adding to existing infrastructure who
-     already understand that use case. If they're unsure, they're not that user.
-
-IF user explicitly mentions server/NAS/Docker/existing infrastructure:
-   → They likely know what they want → Option C is appropriate
-   → Confirm: "You want to add VPN protection to your existing setup
-      without replacing your router, correct?"
 
 IF user has spare Pi/mini-PC:
    → RECOMMEND Option A
 
-IF user has Proxmox/ESXi:
+IF user has Proxmox/ESXi and wants dedicated router:
    → RECOMMEND Option B
 ```
+
+**Default recommendation is OpenWrt** — it's the optimal choice for most users. Docker is for users who explicitly want to add VPN capability to their existing router stack and know they want the container approach.
 
 **Hardware requirements:**
 - **Options A/B:** Device needs TWO network interfaces (WAN + LAN). Single-NIC devices need USB Ethernet adapter.
