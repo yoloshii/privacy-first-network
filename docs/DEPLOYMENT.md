@@ -36,13 +36,24 @@ Step-by-step instructions for deploying the privacy router stack.
 
 Choose your deployment path:
 
-| Option | Difficulty | Best For |
-|--------|------------|----------|
-| [A. Dedicated Hardware](#option-a-dedicated-hardware) | Easy | **Recommended** - Most users, best reliability |
-| [B. Virtual Machine](#option-b-virtual-machine) | Medium | Homelab, enterprise, existing hypervisors |
-| [C. Docker Container](#option-c-docker-container-optional) | Advanced | Optional - for users who prefer containers |
+| Option | Architecture | Best For |
+|--------|--------------|----------|
+| [A. Dedicated Hardware](#option-a-dedicated-hardware) | Router replacement | **Recommended** - Network-wide protection, dedicated device |
+| [B. Virtual Machine](#option-b-virtual-machine) | Router replacement | Homelab with existing hypervisor, 2 NICs available |
+| [C. Docker Container](#option-c-docker-container) | VPN gateway add-on | Existing infrastructure, opt-in device protection |
 
-> **Recommendation:** Options A and B are recommended. Option C (Docker) is entirely optional and provided only as a convenience for advanced users who prefer containers.
+**All options provide the same core protection:** AmneziaWG obfuscation, AdGuard DNS filtering, kill switch, and watchdog recovery. The choice is about deployment architecture:
+
+**Options A & B (OpenWrt):** Full router replacement. OpenWrt becomes your network's router - handles routing, DHCP, firewall, VPN. Existing router becomes WiFi access point only. All devices protected automatically.
+
+**Option C (Docker):** VPN gateway add-on. Runs on existing Docker host (NAS, server, VM). Existing router keeps all functions. Devices opt-in by pointing gateway/DNS at container.
+
+```
+A/B: Modem → [OpenWrt Privacy Router] → WiFi AP → All Devices Protected
+C:   Modem → [Existing Router] → Devices (some point to Docker container)
+```
+
+> **Default recommendation:** OpenWrt (A or B) for most users - simpler architecture, network-wide protection. Docker (C) is appropriate when you want to add VPN capability alongside existing infrastructure without replacing your router.
 
 ---
 
@@ -421,13 +432,22 @@ Continue from [A4](#a4-configure-vpn-tunnel) onwards - the configuration is iden
 
 ---
 
-## Option C: Docker Container (Optional)
+## Option C: Docker Container
 
-> **This is entirely optional** - provided for users who prefer Docker. Options A and B are the recommended deployment methods. You do not need Docker to use this privacy router.
+VPN gateway add-on for users with existing Docker infrastructure who want to add VPN capability without replacing their router.
 
-> **For advanced users** familiar with macvlan networking, iptables, and container troubleshooting. If you're using an AI assistant (Claude, GPT, etc.), give it access to the `docker/` folder - the AI can guide you through setup even if Docker is unfamiliar.
+**When to choose Docker:**
+- You have an existing Docker host (NAS, server, VM)
+- You want to keep your current router's functions
+- You only need some devices protected (opt-in model)
+- You're adding VPN to an existing infrastructure
 
-For users with an existing Docker host who want a container-based deployment with macvlan networking.
+**When to choose OpenWrt instead:**
+- You want network-wide automatic protection
+- You have dedicated hardware available (Pi, mini-PC)
+- You prefer a simpler single-device architecture
+
+> **AI-assisted setup:** If using an AI assistant (Claude, GPT, etc.), give it access to the `docker/` folder - it can guide you through macvlan networking and container configuration.
 
 ### C1. Overview
 
