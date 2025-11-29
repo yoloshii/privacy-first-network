@@ -12,30 +12,11 @@
 # Installation:
 #   1. Copy to /etc/hotplug.d/iface/99-awg
 #   2. chmod +x /etc/hotplug.d/iface/99-awg
-#   3. Edit VPN_IP and ENDPOINT_IP below
+#   3. Edit configuration section inside the script
 #
 # Note: If using the watchdog with failover, the watchdog handles reconnection.
 # This script is for initial tunnel establishment only.
 #
-# =============================================================================
-
-# =============================================================================
-# CONFIGURATION - Edit these values for your setup
-# =============================================================================
-
-# Your VPN internal IP (assigned by VPN provider)
-# Example: 10.64.0.x for Mullvad, 10.x.x.x for IVPN
-VPN_IP="CHANGE_ME"
-
-# Your primary VPN server endpoint IP
-# Get this from your provider's server list
-ENDPOINT_IP="CHANGE_ME"
-
-# Path to AmneziaWG config file
-CONFIG_FILE="/etc/amneziawg/awg0.conf"
-
-# =============================================================================
-# SCRIPT LOGIC - No changes needed below
 # =============================================================================
 
 # Only act on wan interface coming up
@@ -49,6 +30,21 @@ CONFIG_FILE="/etc/amneziawg/awg0.conf"
     fi
 
     logger -t awg-hotplug "Starting AmneziaWG tunnel"
+
+    # =========================================================================
+    # CONFIGURATION - Edit these values for your setup
+    # =========================================================================
+
+    CONFIG_FILE="/etc/amneziawg/awg0.conf"
+
+    # Your VPN internal IP (assigned by VPN provider)
+    # Example: 10.64.0.x for Mullvad, 10.x.x.x for IVPN
+    VPN_IP="CHANGE_ME"
+
+    # VPN server endpoint IP
+    ENDPOINT_IP="CHANGE_ME"
+
+    # =========================================================================
 
     # Create interface
     ip link del dev awg0 2>/dev/null
