@@ -49,9 +49,17 @@
     # Create interface
     ip link del dev awg0 2>/dev/null
     ip link add dev awg0 type amneziawg
+    if [ $? -ne 0 ]; then
+        logger -t awg-hotplug "ERROR: Failed to create awg0 interface"
+        exit 1
+    fi
 
     # Apply config
     /usr/bin/amneziawg setconf awg0 "$CONFIG_FILE"
+    if [ $? -ne 0 ]; then
+        logger -t awg-hotplug "ERROR: Failed to apply config from $CONFIG_FILE"
+        exit 1
+    fi
 
     # Add address and bring up
     ip address add "$VPN_IP/32" dev awg0
