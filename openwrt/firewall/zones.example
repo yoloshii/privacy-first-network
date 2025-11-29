@@ -90,29 +90,28 @@ config rule
 	option target 'ACCEPT'
 
 # =============================================================================
-# OPTIONAL: Block external DNS (prevent DNS bypass)
+# DNS HIJACK PREVENTION (Recommended - Mullvad Best Practice)
 # =============================================================================
+# Blocks devices from bypassing AdGuard with hardcoded DNS (e.g., 8.8.8.8)
+# Exception for AdGuard IP allows it to reach upstream DNS via VPN
+# Change 192.168.1.5 to your AdGuard/DNS server IP
 
-# Uncomment to force all DNS through AdGuard
-# This blocks devices that ignore DHCP DNS settings
+config rule
+	option name 'Block-External-DNS-TCP'
+	option src 'lan'
+	option dest 'vpn'
+	option dest_port '53'
+	option proto 'tcp'
+	option target 'REJECT'
+	option family 'ipv4'
+	option src_ip '!192.168.1.5'
 
-#config rule
-#	option name 'Block-External-DNS-TCP'
-#	option src 'lan'
-#	option dest 'vpn'
-#	option dest_port '53'
-#	option proto 'tcp'
-#	option target 'REJECT'
-#	option family 'ipv4'
-#	# Exception for AdGuard IP
-#	option src_ip '!192.168.1.5'
-
-#config rule
-#	option name 'Block-External-DNS-UDP'
-#	option src 'lan'
-#	option dest 'vpn'
-#	option dest_port '53'
-#	option proto 'udp'
-#	option target 'REJECT'
-#	option family 'ipv4'
-#	option src_ip '!192.168.1.5'
+config rule
+	option name 'Block-External-DNS-UDP'
+	option src 'lan'
+	option dest 'vpn'
+	option dest_port '53'
+	option proto 'udp'
+	option target 'REJECT'
+	option family 'ipv4'
+	option src_ip '!192.168.1.5'

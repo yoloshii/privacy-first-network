@@ -111,7 +111,13 @@ config interface 'lan'
     option netmask '255.255.255.0'
     option ip6assign '60'
     # Router's own DNS (use your VPN provider's DNS)
-    # Mullvad: 100.64.0.4 | IVPN: 10.0.254.1 | Proton: 10.2.0.1
+    # Mullvad options:
+    #   10.64.0.1   - Standard (no blocking)
+    #   100.64.0.1  - Ad-blocking
+    #   100.64.0.2  - Ad + Tracker blocking
+    #   100.64.0.3  - Ad + Tracker + Malware
+    #   100.64.0.4  - Ad + Tracker + Malware + Adult (recommended)
+    # IVPN: 10.0.254.1 | Proton: 10.2.0.1
     option dns 'VPN_PROVIDER_DNS_IP'
 ```
 
@@ -244,6 +250,58 @@ config forwarding
 | lan | vpn | Yes | Internet via VPN |
 | lan | wan | **No** | Kill switch |
 | vpn | wan | No | N/A |
+
+### DNS Hijack Prevention (Recommended)
+
+Blocks devices from bypassing your DNS server with hardcoded addresses (e.g., 8.8.8.8):
+
+```
+config rule
+    option name 'Block-External-DNS-TCP'
+    option src 'lan'
+    option dest 'vpn'
+    option dest_port '53'
+    option proto 'tcp'
+    option target 'REJECT'
+    option family 'ipv4'
+    option src_ip '!192.168.1.5'    # Except your AdGuard/DNS server
+
+config rule
+    option name 'Block-External-DNS-UDP'
+    option src 'lan'
+    option dest 'vpn'
+    option dest_port '53'
+    option proto 'udp'
+    option target 'REJECT'
+    option family 'ipv4'
+    option src_ip '!192.168.1.5'    # Except your AdGuard/DNS server
+```
+
+UCI commands:
+```bash
+uci add firewall rule
+uci set firewall.@rule[-1].name='Block-External-DNS-TCP'
+uci set firewall.@rule[-1].src='lan'
+uci set firewall.@rule[-1].dest='vpn'
+uci set firewall.@rule[-1].dest_port='53'
+uci set firewall.@rule[-1].proto='tcp'
+uci set firewall.@rule[-1].target='REJECT'
+uci set firewall.@rule[-1].family='ipv4'
+uci set firewall.@rule[-1].src_ip='!192.168.1.5'
+
+uci add firewall rule
+uci set firewall.@rule[-1].name='Block-External-DNS-UDP'
+uci set firewall.@rule[-1].src='lan'
+uci set firewall.@rule[-1].dest='vpn'
+uci set firewall.@rule[-1].dest_port='53'
+uci set firewall.@rule[-1].proto='udp'
+uci set firewall.@rule[-1].target='REJECT'
+uci set firewall.@rule[-1].family='ipv4'
+uci set firewall.@rule[-1].src_ip='!192.168.1.5'
+
+uci commit firewall
+/etc/init.d/firewall restart
+```
 
 ---
 
