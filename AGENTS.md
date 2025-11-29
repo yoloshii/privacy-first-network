@@ -337,24 +337,16 @@ Verification (without AdGuard):
 
 ### 4.5 Reliability
 
-**Choose watchdog type:**
-
-**Basic watchdog** (`scripts/awg-watchdog.sh`) - Restarts tunnel on failure
+**Watchdog with failover** (`openwrt/amneziawg/awg-watchdog.sh`):
 ```
-□ Copy to /etc/awg-watchdog.sh
-□ Configure VPN_IP and ENDPOINT_IP
-□ Install init script (openwrt/init.d/awg-watchdog)
-□ Enable: /etc/init.d/awg-watchdog enable && start
-```
-
-**Failover watchdog** (`scripts/awg-watchdog-failover.sh`) - Multi-server failover + failback
-```
-□ Copy to /etc/awg-watchdog.sh
-□ Configure VPN_IP
+□ Copy awg-watchdog.sh to /etc/awg-watchdog.sh
+□ Configure VPN_IP (your provider-assigned internal IP)
 □ Create server list: /etc/amneziawg/servers.conf
-□ Install init script (openwrt/init.d/awg-watchdog)
+□ Copy awg-watchdog.init to /etc/init.d/awg-watchdog
 □ Enable: /etc/init.d/awg-watchdog enable && start
 ```
+
+Read `awg-watchdog.sh` — it's well-commented and explains all configuration options and behavior.
 
 **servers.conf format:**
 ```
