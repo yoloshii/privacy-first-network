@@ -32,13 +32,11 @@ Ask the user or probe their system to determine:
 □ Static IP assignments that must be preserved
 ```
 
-### 1.2 Deployment Method (Ask User)
+### 1.2 Deployment Method
 
-**IMPORTANT: Explain the architectural difference before the user chooses.**
+**This is a decision point requiring user confirmation. Recommend based on audit findings.**
 
 All options provide the **same core protection**: AmneziaWG obfuscation, AdGuard DNS filtering, kill switch, and watchdog recovery. The choice is about deployment architecture, not features.
-
-**Explain this to the user:**
 
 | Option | What You're Deploying | What Happens to Existing Router |
 |--------|----------------------|--------------------------------|
@@ -70,65 +68,69 @@ Option C:   Modem → [Existing Router] → Devices
                     (only devices pointing here are protected)
 ```
 
-**Questions to ask:**
+**Recommendation logic:**
 
 ```
-□ "Do you want a dedicated privacy router that handles your entire network,
-   or add VPN protection to an existing server/NAS?"
+IF user is confused or unsure:
+   → RECOMMEND OpenWrt (Option A or B based on available hardware)
+   → "I recommend the dedicated privacy router approach - it protects your
+      entire network automatically and is the most straightforward setup."
+   → Note: Docker option is for users adding to existing infrastructure who
+     already understand that use case. If they're unsure, they're not that user.
 
-□ If dedicated router → Options A or B
-   □ Do you have spare hardware (Pi, mini PC)? → Option A
-   □ Do you have a hypervisor (Proxmox, ESXi)? → Option B
+IF user explicitly mentions server/NAS/Docker/existing infrastructure:
+   → They likely know what they want → Option C is appropriate
+   → Confirm: "You want to add VPN protection to your existing setup
+      without replacing your router, correct?"
 
-□ If add-on to existing infrastructure → Option C
-   □ What's the Docker host? (Linux server, NAS, VM)
-   □ Does it have Docker installed?
+IF user has spare Pi/mini-PC:
+   → RECOMMEND Option A
+
+IF user has Proxmox/ESXi:
+   → RECOMMEND Option B
 ```
 
 **Hardware requirements:**
 - **Options A/B:** Device needs TWO network interfaces (WAN + LAN). Single-NIC devices need USB Ethernet adapter.
 - **Option C:** Any Docker host with macvlan support. See [docker/README.md](docker/README.md).
 
-### 1.3 VPN Provider Details
+### 1.3 VPN Provider Configuration
 
-**Deep research the user's VPN provider** to determine:
-- Does it support WireGuard? (required)
-- Does it provide AmneziaWG obfuscation parameters? (optional, for DPI bypass)
-- What are the provider's DNS servers?
+**Autonomous where possible, respect user privacy for secrets.**
 
+1. **Determine provider** — Ask if not known: "Which VPN provider do you use?"
+2. **Research provider automatically** — WireGuard support, config format, server list
+3. **Handle secrets appropriately** — See below
+
+**Handling secrets (private keys, credentials):**
+
+Before asking user to share any secrets, ask if they're comfortable:
 ```
-Search: "[provider name] wireguard config linux"
-Search: "[provider name] amneziawg parameters"
+"Your VPN config contains a private key. I can help in two ways:
+ 1. You paste the config here and I'll set everything up automatically
+ 2. You prefer to input secrets yourself - I'll generate the config with
+    placeholders and tell you exactly where to fill them in
+
+Which do you prefer?"
 ```
 
-**If user hasn't chosen a provider yet:** Recommend Mullvad (see README for rationale).
+- If user is comfortable → parse config, extract values, deploy automatically
+- If user prefers privacy → generate config template, guide them to fill in secrets directly on the target system
 
-**If user is in a high-censorship region:** WireGuard/AmneziaWG may be insufficient. Deep research current obfuscation methods:
+**What you research/derive automatically (no user input needed):**
+- Provider's WireGuard support and config format
+- Server IPs (resolve hostnames)
+- Provider DNS servers
+- AmneziaWG obfuscation parameters (use defaults from this repo)
 
-```
-Search: "best VPN obfuscation protocol 2025"
-Search: "VLESS Reality XRay setup guide"
-```
+**If user hasn't chosen a provider:** Recommend Mullvad (see README for rationale).
 
-> This stack focuses on WireGuard/AmneziaWG. For advanced protocols (VLESS, XRay), research dedicated solutions.
-
-Obtain from user:
-
-```
-□ VPN provider name (strongly recommend Mullvad)
-□ WireGuard config file (download from provider's account page)
-□ If using AmneziaWG obfuscation: parameters (Jc, Jmin, Jmax, S1, S2, H1-H4)
-  - Use example AWG params from this repo (work with any WireGuard server)
-  - For self-hosted: Amnezia server generates params automatically
-□ Assigned internal VPN IP (e.g., 10.66.x.x/32 for Mullvad)
-□ VPN server endpoint IP and port
-□ Private key and server public key
-```
+**If user is in a high-censorship region:** WireGuard/AmneziaWG may be insufficient. Research current obfuscation methods and advise accordingly.
 
 **For Mullvad users:**
-- Get WireGuard config: https://mullvad.net/en/account/wireguard-config
-- Server list with IPs: https://mullvad.net/en/servers
-- DNS servers: Provider-specific (see DNS table below)
+- Config page: https://mullvad.net/en/account/wireguard-config
+- Server list: https://mullvad.net/en/servers
+- DNS servers: See DNS table in Mullvad-Specific section
 
 ### 1.4 Special Requirements
 
@@ -232,6 +234,56 @@ Based on audit results, create a customized plan using these references:
 > 3. **Test** - Verify each component before proceeding to the next
 >
 > Never assume example values are correct for the user's setup.
+
+### Autonomous Operation Philosophy
+
+**This stack is designed to be "vibe coded" — deploy with minimal user input.**
+
+**Your job as an agent:**
+1. **Audit autonomously** — Probe the network, detect topology, identify existing infrastructure
+2. **Infer the right approach** — Based on audit findings, determine optimal deployment (OpenWrt vs Docker)
+3. **Interface with VPN providers directly** — Use APIs, scrape account pages, or guide user through automated setup
+4. **Generate configs automatically** — Derive all values from audit + VPN provider data
+5. **Deploy with self-correction** — Test, detect failures, diagnose, fix without asking user
+
+**Minimal user decision points:**
+- "Which VPN provider?" (or detect from existing config)
+- High-level preferences when genuinely ambiguous (privacy vs convenience tradeoffs)
+- Credentials that require human authentication (login to VPN portal)
+
+**NOT acceptable:**
+- Asking user for IP addresses you can discover
+- Asking user for technical values you can derive
+- Asking user to "confirm" values you already validated
+- Multi-step Q&A for information that should be automated
+
+**Example of CORRECT autonomous operation:**
+```
+User: "Set up my network with VPN protection"
+
+Agent: [Audits network topology via SSH/API]
+       "I found your network: 192.168.1.0/24, router at .1, server 'nas-01' at .50.
+        Since you have a capable server, I'll deploy the Docker VPN gateway.
+
+        Which VPN provider do you use? (Or I can set up Mullvad - recommended)"
+
+User: "I have Mullvad"
+
+Agent: [Guides user through Mullvad login to generate WireGuard config]
+       "Please log into mullvad.net and go to WireGuard config page.
+        I'll wait while you download the config file..."
+
+User: [uploads/pastes config file]
+
+Agent: [Parses config, extracts all values, selects optimal server]
+       "Got it. Deploying to nas-01 with Stockholm exit server.
+        [Deploys automatically, tests, confirms working]
+
+        Done. All traffic now routes through VPN. Kill switch active.
+        Test: https://am.i.mullvad.net/connected"
+```
+
+### Template Reference
 
 Use these example configs, substituting user-specific values:
 
