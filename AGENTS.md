@@ -31,7 +31,10 @@ Probe the user's environment automatically where possible:
 ```
 
 ### 2. User Input (Secrets Only)
-**Only prompt the user for actual secrets** that cannot be discovered:
+**Only prompt the user for actual secrets** that cannot be discovered.
+
+**Permission required:** Before ingesting any secret, ask the user if they consent to providing it to the agent. If they decline, they must input the value manually into config files.
+
 ```
 □ VPN private key (generated or from provider account)
 □ VPN account credentials (if downloading config)
