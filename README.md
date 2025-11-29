@@ -233,8 +233,25 @@ If your VPN works fine with regular WireGuard, you can use standard WireGuard in
 - **VPN Account**: Mullvad, IVPN, ProtonVPN, or any WireGuard-compatible provider
 - **Network Access**: Ability to place device between modem and router
 
+### Deployment Options
+
+Choose the deployment method that fits your setup:
+
+| Option | Platform | Best For |
+|--------|----------|----------|
+| **A: Dedicated Hardware** | OpenWrt on Pi/mini PC | Most users - simple, reliable, always-on |
+| **B: Virtual Machine** | OpenWrt on Proxmox/ESXi | Homelab users with existing hypervisors |
+| **C: Docker Container** | Alpine + macvlan | Users who prefer containers or need portability |
+
+**Options A & B** run OpenWrt with native AmneziaWG kernel module - maximum performance and simplest troubleshooting. Recommended for most users.
+
+**Option C** runs in Docker with userspace WireGuard - ideal if you're comfortable with containers, want easy backup/restore, or need to run alongside other services on a single host.
+
+> **🤖 Not sure which to pick?** An AI agent can assess your setup and recommend the best option. Point it to [AGENTS.md](AGENTS.md) and let it guide you through deployment.
+
 ### Installation Overview
 
+**For Options A & B (OpenWrt):**
 1. Install OpenWrt on your device
 2. Install AmneziaWG (or WireGuard)
 3. Configure network interfaces
@@ -245,7 +262,7 @@ If your VPN works fine with regular WireGuard, you can use standard WireGuard in
 
 **Detailed instructions:** [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 
-> **Advanced users:** A Docker deployment option exists for users comfortable with container networking. See [Option C: Docker](docker/README.md). This is **not recommended** for most users - dedicated hardware or VM deployments provide better reliability and simpler troubleshooting.
+**For Option C (Docker):** See [docker/README.md](docker/README.md) for container-specific setup.
 
 ---
 
