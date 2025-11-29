@@ -92,7 +92,7 @@ services:
   adguard:
     image: adguard/adguardhome:latest
     container_name: adguard
-    hostname: adguard
+    # hostname removed - can't set when using network_mode: service
     restart: unless-stopped
 
     # Share network namespace with VPN container

@@ -29,8 +29,8 @@ pass "VPN interface UP"
 amneziawg show awg0 2>/dev/null | grep -q "latest handshake" || fail "No VPN handshake"
 pass "VPN handshake active"
 
-# 3. Tunnel Ping
-ping -c 1 -W 3 -I awg0 1.1.1.1 &>/dev/null || fail "Cannot ping through tunnel"
+# 3. Tunnel HTTP (more reliable than ping through VPN)
+curl -s --max-time 5 --interface awg0 http://1.1.1.1 &>/dev/null || fail "Cannot reach internet through tunnel"
 pass "Tunnel connectivity"
 
 # 4. Exit IP

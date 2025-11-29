@@ -94,10 +94,10 @@ fi
 # -----------------------------------------------------------------------------
 # TEST 4: Tunnel Connectivity
 # -----------------------------------------------------------------------------
-if ping -c 3 -W 5 -I awg0 1.1.1.1 &>/dev/null; then
-    log_test "Tunnel connectivity (ping)" "PASS"
+if curl -s --max-time 5 --interface awg0 http://1.1.1.1 &>/dev/null; then
+    log_test "Tunnel connectivity (HTTP)" "PASS"
 else
-    log_test "Tunnel connectivity (ping)" "FAIL" "Cannot ping through awg0"
+    log_test "Tunnel connectivity (HTTP)" "FAIL" "Cannot reach internet through awg0"
 fi
 
 # -----------------------------------------------------------------------------
@@ -109,7 +109,7 @@ if [[ -n "$EXIT_IP" ]]; then
     log_info "Your exit IP: $EXIT_IP"
 
     # Verify it's not the container's LAN IP
-    CONTAINER_IP=$(ip -4 addr show eth0 2>/dev/null | grep -oP '(?<=inet\s)\d+\.\d+\.\d+\.\d+' || echo "")
+    CONTAINER_IP=$(ip -4 addr show eth0 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 || echo "")
     if [[ "$EXIT_IP" != "$CONTAINER_IP" ]]; then
         log_test "Exit IP differs from LAN IP" "PASS"
     else
@@ -141,8 +141,9 @@ sleep 1
 # Try to access internet without VPN
 LEAK_TEST=$(curl -s --max-time 5 https://ipinfo.io/ip 2>/dev/null || echo "BLOCKED")
 
-# Bring VPN back up
+# Bring VPN back up and restore routing
 ip link set awg0 up 2>/dev/null || true
+ip route add default dev awg0 2>/dev/null || true
 sleep 3
 
 # Verify kill switch

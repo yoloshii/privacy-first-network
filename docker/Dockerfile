@@ -7,10 +7,10 @@
 # Based on amneziawg-go (userspace implementation - no kernel module required)
 # =============================================================================
 
-FROM golang:1.22-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
-# Install build dependencies
-RUN apk add --no-cache git make
+# Install build dependencies (git, make, C compiler for amneziawg-tools)
+RUN apk add --no-cache git make build-base linux-headers
 
 # Build amneziawg-go from source
 WORKDIR /build

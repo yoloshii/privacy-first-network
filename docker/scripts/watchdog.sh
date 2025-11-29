@@ -62,13 +62,21 @@ restart_tunnel() {
         /etc/amneziawg/predown.sh
     fi
 
-    # Remove existing interface
+    # Remove existing interface and kill userspace daemon
     ip link del dev awg0 2>/dev/null || true
+    pkill -f "amneziawg-go awg0" 2>/dev/null || true
     sleep 2
 
-    # Recreate interface
-    log "Creating awg0 interface..."
-    ip link add dev awg0 type amneziawg
+    # Start userspace AmneziaWG daemon (creates TUN interface)
+    log "Creating awg0 interface (userspace daemon)..."
+    amneziawg-go awg0 &
+    sleep 2
+
+    # Verify interface was created
+    if ! ip link show awg0 >/dev/null 2>&1; then
+        log "ERROR: Failed to create awg0 interface"
+        return 1
+    fi
 
     # Apply configuration
     log "Applying VPN configuration..."

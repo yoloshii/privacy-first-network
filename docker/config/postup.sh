@@ -88,8 +88,10 @@ log "OUTPUT rules applied"
 # FORWARD Rules (LAN gateway - routing traffic for other devices)
 # -----------------------------------------------------------------------------
 
-# Enable IP forwarding
-echo 1 > /proc/sys/net/ipv4/ip_forward
+# Enable IP forwarding (if not already set via Docker sysctls)
+if [[ "$(cat /proc/sys/net/ipv4/ip_forward 2>/dev/null)" != "1" ]]; then
+    echo 1 > /proc/sys/net/ipv4/ip_forward 2>/dev/null || log "IP forwarding already enabled via sysctls"
+fi
 
 # Allow LAN to VPN tunnel
 iptables -A FORWARD -i eth0 -o awg0 -s "$LAN_SUBNET" -j ACCEPT

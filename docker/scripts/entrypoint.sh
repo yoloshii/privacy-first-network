@@ -70,9 +70,21 @@ setup_tunnel() {
     # Remove existing interface if present
     ip link del dev awg0 2>/dev/null || true
 
-    # Create AmneziaWG interface
-    ip link add dev awg0 type amneziawg
-    log "Created awg0 interface"
+    # Kill any existing amneziawg-go process
+    pkill -f "amneziawg-go awg0" 2>/dev/null || true
+
+    # Start userspace AmneziaWG daemon (creates TUN interface)
+    # This replaces kernel-based `ip link add dev awg0 type amneziawg`
+    amneziawg-go awg0 &
+    AWG_PID=$!
+    sleep 2
+
+    # Verify interface was created
+    if ! ip link show awg0 >/dev/null 2>&1; then
+        log_error "Failed to create awg0 interface via amneziawg-go"
+        exit 1
+    fi
+    log "Created awg0 interface (userspace daemon PID: $AWG_PID)"
 
     # Apply configuration
     amneziawg setconf awg0 /etc/amneziawg/awg0.conf
