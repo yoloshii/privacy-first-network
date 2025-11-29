@@ -417,6 +417,47 @@ uci commit firewall
 □ Kill switch tested (ip link set awg0 down → no internet)
 ```
 
+### 4.3.1 DNS Hijack Prevention (Recommended)
+
+Prevents devices from bypassing your DNS server with hardcoded addresses (e.g., 8.8.8.8):
+
+```bash
+# Block external DNS except from your DNS server (AdGuard/Pi-hole IP)
+# Change 192.168.1.5 to your AdGuard/DNS server IP
+
+uci add firewall rule
+uci set firewall.@rule[-1].name='Block-External-DNS-TCP'
+uci set firewall.@rule[-1].src='lan'
+uci set firewall.@rule[-1].dest='vpn'
+uci set firewall.@rule[-1].dest_port='53'
+uci set firewall.@rule[-1].proto='tcp'
+uci set firewall.@rule[-1].target='REJECT'
+uci set firewall.@rule[-1].family='ipv4'
+uci set firewall.@rule[-1].src_ip='!192.168.1.5'
+
+uci add firewall rule
+uci set firewall.@rule[-1].name='Block-External-DNS-UDP'
+uci set firewall.@rule[-1].src='lan'
+uci set firewall.@rule[-1].dest='vpn'
+uci set firewall.@rule[-1].dest_port='53'
+uci set firewall.@rule[-1].proto='udp'
+uci set firewall.@rule[-1].target='REJECT'
+uci set firewall.@rule[-1].family='ipv4'
+uci set firewall.@rule[-1].src_ip='!192.168.1.5'
+
+uci commit firewall
+/etc/init.d/firewall restart
+```
+
+**Why:** Smart TVs, IoT devices, and some apps bypass local DNS by hardcoding Google (8.8.8.8) or Cloudflare (1.1.1.1). This rule forces all DNS through your local server, ensuring ad blocking and privacy protection apply to all devices.
+
+**Verification:**
+```
+□ DNS hijack rules added (iptables -L -n | grep 53)
+□ Test: nslookup google.com 8.8.8.8 from client → should fail/timeout
+□ Test: nslookup google.com (via local DNS) → should work
+```
+
 ### 4.4 DNS
 
 **If user chose AdGuard Home (from 1.5):**
