@@ -35,9 +35,9 @@ start_service() {
         return 1
     fi
 
-    # Check for unconfigured placeholders
-    if grep -q 'CHANGE_ME' "$WATCHDOG_SCRIPT"; then
-        logger -t awg-init "ERROR: $WATCHDOG_SCRIPT not configured (contains CHANGE_ME)"
+    # Check for unconfigured placeholders (actual assignments, not validation code)
+    if grep -E '^VPN_IP="CHANGE_ME"|^ENDPOINT_IP="CHANGE_ME"' "$WATCHDOG_SCRIPT" >/dev/null 2>&1; then
+        logger -t awg-init "ERROR: $WATCHDOG_SCRIPT not configured (VPN_IP or ENDPOINT_IP is CHANGE_ME)"
         return 1
     fi
 
