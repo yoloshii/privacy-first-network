@@ -241,7 +241,7 @@ Based on audit results, create a customized plan using these references:
 
 **Your job as an agent:**
 1. **Audit autonomously** — Probe the network, detect topology, identify existing infrastructure
-2. **Infer the right approach** — Based on audit findings, determine optimal deployment (OpenWrt vs Docker)
+2. **Recommend OpenWrt by default** — Docker only if user explicitly requests it
 3. **Interface with VPN providers directly** — Use APIs, scrape account pages, or guide user through automated setup
 4. **Generate configs automatically** — Derive all values from audit + VPN provider data
 5. **Deploy with self-correction** — Test, detect failures, diagnose, fix without asking user
