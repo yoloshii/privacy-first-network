@@ -174,6 +174,7 @@ Based on audit results, create a customized plan using these references:
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Config file syntax and options |
 | [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) | Deep technical understanding |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | When things go wrong |
+| [docs/OPTIONAL_ADDONS.md](docs/OPTIONAL_ADDONS.md) | AdGuard Home, BanIP setup details |
 
 ### Implementation Templates
 
@@ -192,7 +193,8 @@ Use these example configs, substituting user-specific values:
 |----------|----------|:------:|-------|
 | **Core (Required)** | | | |
 | Network interfaces | `openwrt/network/interfaces.example` | ✓ | Generic OpenWrt |
-| Firewall zones | `openwrt/firewall/zones.example` | ✓ | Kill switch architecture |
+| Firewall zones (full) | `openwrt/firewall/zones.example` | ✓ | Complete firewall config |
+| Firewall VPN zone | `openwrt/firewall-vpn-zone.example` | ✓ | VPN zone + kill switch only |
 | DHCP config | `openwrt/dhcp/dhcp.example` | ✓ | DNS push to clients |
 | VPN tunnel (generic) | `openwrt/amneziawg/awg0.conf.example` | ✓ | Any WireGuard provider |
 | VPN tunnel (Mullvad) | `openwrt/amneziawg/mullvad-awg0.conf.example` | ✓ | Mullvad-optimized |
@@ -200,12 +202,19 @@ Use these example configs, substituting user-specific values:
 | Server list (failover) | `openwrt/amneziawg/servers.conf.example` | ✓ | For failover watchdog |
 | Hotplug script | `openwrt/amneziawg/99-awg.hotplug` | ✓ | WAN-up auto-start |
 | **Init script (OpenWrt)** | `openwrt/amneziawg/awg-watchdog.init` | ✓ | Boot persistence (procd) |
-| Cron jobs | `openwrt/crontab.example` | | Scheduled tasks |
+| **Systemd service (watchdog)** | `scripts/awg-watchdog.service` | ✓ | Linux systemd (non-OpenWrt) |
+| Cron jobs | `openwrt/crontab.example` | ✓ | Scheduled tasks template |
+| IPv6 disable (kernel) | `openwrt/sysctl-ipv6-disable.conf` | ✓ | sysctl.conf additions |
 | **Optional Addons (ask user in 1.5)** | | | |
-| AdGuard Home (generic) | `adguard/AdGuardHome.yaml.example` | | Any upstream DNS |
-| AdGuard Home (Mullvad) | `adguard/mullvad-AdGuardHome.yaml.example` | | Mullvad DoH |
-| Systemd service (AdGuard) | `scripts/adguardhome.service` | | Linux systemd |
+| AdGuard Home (generic) | `adguard/AdGuardHome.yaml.example` | ✓ | Any upstream DNS |
+| AdGuard Home (Mullvad) | `adguard/mullvad-AdGuardHome.yaml.example` | ✓ | Mullvad DoH |
+| Systemd service (AdGuard) | `scripts/adguardhome.service` | ✓ | Linux systemd |
 | BanIP config | `openwrt/banip/banip.example` | | Threat intelligence |
+| **Utility Scripts** | | | |
+| Firewall setup | `scripts/setup-firewall.sh` | ✓ | One-command VPN zone setup |
+| IPv6 disable | `scripts/disable-ipv6.sh` | ✓ | Complete IPv6 hardening |
+| Config backup | `scripts/auto-backup.sh` | ✓ | Daily /etc/config backup |
+| Log rotation | `scripts/rotate-watchdog-log.sh` | ✓ | Watchdog log rotation |
 
 > **Tested column:** ✓ = Production-tested on Raspberry Pi 5 with OpenWrt 23.05 and Mullvad VPN
 
@@ -338,6 +347,8 @@ Verification (without AdGuard):
 ### 4.5 Reliability
 
 **Watchdog with failover** (`openwrt/amneziawg/awg-watchdog.sh`):
+
+**For OpenWrt (procd):**
 ```
 □ Copy awg-watchdog.sh to /etc/awg-watchdog.sh
 □ Configure VPN_IP (your provider-assigned internal IP)
@@ -346,24 +357,42 @@ Verification (without AdGuard):
 □ Enable: /etc/init.d/awg-watchdog enable && start
 ```
 
+**For standard Linux (systemd):**
+```
+□ Copy awg-watchdog.sh to /etc/awg-watchdog.sh
+□ Configure VPN_IP (your provider-assigned internal IP)
+□ Create server list: /etc/amneziawg/servers.conf
+□ Copy scripts/awg-watchdog.service to /etc/systemd/system/
+□ systemctl daemon-reload
+□ systemctl enable --now awg-watchdog
+```
+
 Read `awg-watchdog.sh` — it's well-commented and explains all configuration options and behavior.
 
 **servers.conf format:**
 ```
 # Format: NAME ENDPOINT_IP PORT PUBLIC_KEY
 # First server = primary (watchdog failsback to it)
-# Use "-" for PUBLIC_KEY if same as base awg0.conf
 
-server-region1-001   203.0.113.10    51820   YOUR_PROVIDERS_PUBLIC_KEY
-server-region1-002   203.0.113.11    51820   -
-server-region1-003   203.0.113.12    51820   -
-server-region2-001   198.51.100.10   51820   -
+# PUBLIC KEY RULES:
+# - First server: Specify the actual public key from awg0.conf
+# - Same-city servers: Use "-" (inherits from base config)
+# - Different cities: MUST specify that city's public key!
+
+# Example: All same city (LAX cluster) - can use "-" after first
+us-lax-wg-001   203.0.113.10    51820   AbCdEfGh...your_key_here
+us-lax-wg-002   203.0.113.11    51820   -
+us-lax-wg-003   203.0.113.12    51820   -
+
+# WRONG: Mixing cities with "-" will FAIL (different keys!)
+# us-sjc-wg-001   198.51.100.10   51820   -   # ✗ Different city, needs its own key!
 ```
 
 Guidelines:
-- Add 3-5 servers from same region for low latency
-- Get server IPs from your VPN provider (resolve hostnames to IPs)
-- See `servers.conf.example` for full documentation
+- Add 3-5 servers from **same city/region** for simplest config
+- If mixing cities, get each city's public key from your VPN provider
+- Get server IPs by resolving hostnames (not the hostname itself!)
+- See `servers.conf.example` for full documentation and examples
 
 **Failover behavior:**
 - Monitors connectivity by pinging through tunnel
@@ -375,10 +404,18 @@ Guidelines:
 **Other reliability components:**
 ```
 □ Hotplug script installed (auto-start on WAN up)
-□ Boot persistence configured
-□ IPv6 disabled at all levels
-□ Optional: cron jobs for backup/log rotation
+□ Boot persistence configured (init.d or systemd)
+□ IPv6 disabled at all levels (see openwrt/sysctl-ipv6-disable.conf)
+□ Optional: scripts/auto-backup.sh for daily config backup
+□ Optional: scripts/rotate-watchdog-log.sh for log rotation
+□ Optional: cron jobs (openwrt/crontab.example)
 ```
+
+**Utility scripts** (copy to /etc/ and add to cron):
+- `scripts/setup-firewall.sh` - One-command VPN zone setup
+- `scripts/disable-ipv6.sh` - Complete IPv6 hardening (kernel + UCI)
+- `scripts/auto-backup.sh` - Daily /etc/config backup with rotation
+- `scripts/rotate-watchdog-log.sh` - Watchdog log rotation
 
 ### 4.6 Cutover
 
