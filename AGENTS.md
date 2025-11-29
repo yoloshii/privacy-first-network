@@ -15,6 +15,56 @@ Help the user deploy a privacy router that:
 
 ---
 
+## Information Discovery Hierarchy
+
+**All placeholder values in examples (YOUR_*, VPN_PROVIDER_*, etc.) must be resolved. Use this priority order:**
+
+### 1. Local Discovery (Preferred)
+Probe the user's environment automatically where possible:
+```
+- Network topology: ip addr, ip route, /etc/config/network
+- Interface names: ip link, ls /sys/class/net/
+- Current gateway/DNS: cat /etc/resolv.conf, ip route show default
+- DHCP leases: cat /tmp/dhcp.leases
+- Firewall state: iptables -L -n, uci show firewall
+- Existing configs: /etc/amneziawg/, /etc/config/
+```
+
+### 2. User Input (Secrets Only)
+**Only prompt the user for actual secrets** that cannot be discovered:
+```
+□ VPN private key (generated or from provider account)
+□ VPN account credentials (if downloading config)
+□ Desired passwords for router/AdGuard admin
+```
+
+Do NOT prompt for values that can be discovered or researched.
+
+### 3. Deep Research (Current/External Values)
+Use web research for values requiring up-to-date discovery:
+```
+- VPN server endpoints (IPs, ports, public keys)
+- VPN provider DNS IPs (may change)
+- Provider-specific configuration requirements
+- Current best practices and security advisories
+```
+
+**Examples of what to discover vs. ask:**
+
+| Value | Discovery Method |
+|-------|-----------------|
+| WAN interface name | `ip link` or `uci show network` |
+| LAN IP scheme | `ip addr show br-lan` |
+| AdGuard IP | Check DHCP config or ask user preference |
+| Mullvad server IP | Research current server list |
+| Mullvad public key | Research or download from provider |
+| User's private key | **ASK** - this is a secret |
+| VPN provider DNS | Research provider documentation |
+
+**The goal:** Minimize user prompts. Discover what's discoverable, research what's public, ask only for secrets.
+
+---
+
 ## Phase 1: Network Audit
 
 **Before any implementation, gather this information:**
