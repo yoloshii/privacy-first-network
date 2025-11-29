@@ -71,3 +71,28 @@ Endpoint = MULLVAD_SERVER_IP:51820
 
 # Keepalive for NAT traversal
 PersistentKeepalive = 25
+
+# =============================================================================
+# Mullvad DNS Servers (For Router Configuration)
+# =============================================================================
+# Use these IPs in your OpenWrt network.lan.dns setting
+# See: https://mullvad.net/en/help/dns-over-https-and-dns-over-tls
+#
+# Standard DNS (no blocking):
+#   10.64.0.1
+#
+# Content-filtering DNS options:
+#   100.64.0.1  - Ad-blocking
+#   100.64.0.2  - Ad + Tracker blocking
+#   100.64.0.3  - Ad + Tracker + Malware blocking
+#   100.64.0.4  - Ad + Tracker + Malware + Adult blocking
+#
+# DoH endpoints (for AdGuard Home upstream):
+#   https://dns.mullvad.net/dns-query           (standard)
+#   https://adblock.dns.mullvad.net/dns-query   (ad-blocking)
+#   https://base.dns.mullvad.net/dns-query      (tracker+malware blocking)
+#   https://all.dns.mullvad.net/dns-query       (all blocking)
+#
+# OpenWrt configuration example:
+#   uci set network.lan.dns='100.64.0.4'
+#   uci commit network
