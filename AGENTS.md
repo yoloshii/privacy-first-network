@@ -32,17 +32,31 @@ Ask the user or probe their system to determine:
 □ Static IP assignments that must be preserved
 ```
 
-### 1.2 Hardware for Privacy Router
+### 1.2 Deployment Method (Ask User)
 
-Determine what the user will run OpenWrt on:
+**Present these options to the user and let them choose:**
+
+| Option | Platform | Best For | Complexity |
+|--------|----------|----------|------------|
+| **A: Dedicated Hardware** | OpenWrt on Pi/mini PC | Most users - reliable, always-on | Low |
+| **B: Virtual Machine** | OpenWrt on Proxmox/ESXi | Homelab with existing hypervisor | Medium |
+| **C: Docker Container** | Alpine + macvlan | Container fans, portability, easy backup | Medium |
+
+**Recommendation guidance:**
+- **Options A & B (OpenWrt):** Native kernel module, maximum performance, simpler troubleshooting. Recommended for most users.
+- **Option C (Docker):** Userspace WireGuard, runs alongside other services, easy backup/restore via container images. Good for users comfortable with Docker networking.
 
 ```
-□ Dedicated hardware (Raspberry Pi 4/5, x86 mini PC)
-□ Virtual machine (which hypervisor?)
-□ Existing OpenWrt device
+□ Which deployment method does user prefer? (A/B/C)
+□ If A or B: Device needs TWO network interfaces (WAN + LAN)
+□ If A: What hardware? (Raspberry Pi 4/5, x86 mini PC, existing OpenWrt device)
+□ If B: Which hypervisor? (Proxmox, ESXi, Hyper-V)
+□ If C: Docker host OS and version?
 ```
 
-**Critical requirement:** The device needs TWO network interfaces (WAN + LAN). For single-NIC devices, a USB Ethernet adapter is required.
+**For single-NIC devices (Options A/B):** A USB Ethernet adapter is required.
+
+**For Docker (Option C):** Host must support macvlan networking. See [docker/README.md](docker/README.md) for requirements.
 
 ### 1.3 VPN Provider Details
 
@@ -170,7 +184,8 @@ Based on audit results, create a customized plan using these references:
 | Document | Use For |
 |----------|---------|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Understanding component relationships |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Step-by-step installation procedures |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Step-by-step installation (Options A & B) |
+| [docker/README.md](docker/README.md) | Docker deployment (Option C) |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Config file syntax and options |
 | [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) | Deep technical understanding |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | When things go wrong |
@@ -215,14 +230,28 @@ Use these example configs, substituting user-specific values:
 | IPv6 disable | `scripts/disable-ipv6.sh` | ✓ | Complete IPv6 hardening |
 | Config backup | `scripts/auto-backup.sh` | ✓ | Daily /etc/config backup |
 | Log rotation | `scripts/rotate-watchdog-log.sh` | ✓ | Watchdog log rotation |
+| **Docker (Option C)** | | | |
+| Dockerfile | `docker/Dockerfile` | ✓ | Multi-stage, builds amneziawg-go |
+| Compose file | `docker/docker-compose.yml` | ✓ | macvlan + AdGuard sidecar |
+| Environment template | `docker/.env.example` | ✓ | All required variables |
+| VPN config | `docker/config/awg0.conf.example` | ✓ | Container VPN template |
+| Kill switch | `docker/config/postup.sh` | ✓ | iptables DROP policy |
+| Entrypoint | `docker/scripts/entrypoint.sh` | ✓ | Container startup |
+| Health check | `docker/scripts/healthcheck.sh` | ✓ | 5-layer health validation |
+| Watchdog | `docker/scripts/watchdog.sh` | ✓ | Auto-recovery daemon |
+| Test suite | `docker/scripts/test-suite.sh` | ✓ | 10 comprehensive tests |
+| Quick test | `docker/scripts/quick-test.sh` | ✓ | Fast daily validation |
+| Docker README | `docker/README.md` | ✓ | Container-specific setup |
 
-> **Tested column:** ✓ = Production-tested on Raspberry Pi 5 with OpenWrt 23.05 and Mullvad VPN
+> **Tested column:** ✓ = Production-tested. OpenWrt on Raspberry Pi 5 (23.05, Mullvad). Docker on amd64 + arm64.
 
 ---
 
 ## Phase 4: Execution Checklist
 
-Guide the user through these steps, verifying each before proceeding:
+> **Docker users (Option C):** Skip this phase. Follow [docker/README.md](docker/README.md) instead, then proceed to Phase 5 for validation tests. The Docker implementation includes built-in test scripts (`quick-test.sh`, `test-suite.sh`).
+
+**For Options A & B (OpenWrt):** Guide the user through these steps, verifying each before proceeding:
 
 ### 4.1 Base System
 
@@ -430,7 +459,18 @@ Guidelines:
 
 ## Phase 5: Validation Tests
 
-After deployment, run these verification tests:
+After deployment, run these verification tests.
+
+**Docker users (Option C):** Use the built-in test scripts:
+```bash
+# Quick validation (5 tests, ~10 seconds)
+docker exec privacy-router /opt/scripts/quick-test.sh
+
+# Full test suite (10 tests, includes kill switch verification)
+docker exec privacy-router /opt/scripts/test-suite.sh
+```
+
+**OpenWrt users (Options A & B):** Run these manually:
 
 ```bash
 # VPN active (Mullvad)
