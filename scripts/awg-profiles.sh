@@ -16,21 +16,28 @@
 #   sip     - SIP/VoIP protocol mimic
 #   stealth - Maximum obfuscation (QUIC + aggressive junk)
 #
-# Source: wgtunnel (https://github.com/zaneschepke/wgtunnel)
+# Official AWG Parameters (from amnezia-vpn/amneziawg-tools):
+#   I1-I5  - Init packet specs (hex blobs sent before handshake)
+#   Jc     - Junk packet count
+#   Jmin   - Min junk packet size
+#   Jmax   - Max junk packet size
+#   S1-S4  - Packet padding sizes
+#   H1-H4  - Magic header values
+#
+# NOT Official (wgtunnel-only, will cause errors):
+#   j1, itime - DO NOT USE
 # =============================================================================
 
 # Profile hex blobs (AmneziaWG 1.5 protocol mimic)
-# These are injected as i1/i2/j1/itime parameters
+# These are injected as I1/I2 parameters (UPPERCASE per official spec)
+# QUIC blob from official AmneziaVPN docs (https://amneziavpn.org/documentation/instructions/new-amneziawg-selfhosted)
 
-AWG_QUIC_I1='<b 0xc1ff000012508394c8f03e51570800449f0dbc195a0000f3a694c75775b4e546172ce9e047cd0b5bee5181648c727adc87f7eae54473ec6cba6bdad4f59823174b769f12358abd292d4f3286934484fb8b239c38732e1f3bbbc6a003056487eb8b5c88b9fd9279ffff3b0f4ecf95c4624db6d65d4113329ee9b0bf8cdd7c8a8d72806d55df25ecb66488bc119d7c9a29abaf99bb33c56b08ad8c26995f838bb3b7a3d5c1858b8ec06b839db2dcf918d5ea9317f1acd6b663cc8925868e2f6a1bda546695f3c3f33175944db4a11a346afb07e78489e509b02add51b7b203eda5c330b03641179a31fbba9b56ce00f3d5b5e3d7d9c5429aebb9576f2f7eacbe27bc1b8082aaf68fb69c921aa5d33ec0c8510410865a178d86d7e54122d55ef2c2bbc040be46d7fece73fe8a1b24495ec160df2da9b20a7ba2f26dfa2a44366dbc63de5cd7d7c94c57172fe6d79c901f025c0010b02c89b395402c009f62dc053b8067a1e0ed0a1e0cf5087d7f78cbd94afe0c3dd55d2d4b1a5cfe2b68b86264e351d1dcd858783a240f893f008ceed743d969b8f735a1677ead960b1fb1ecc5ac83c273b49288d02d7286207e663c45e1a7baf50640c91e762941cf380ce8d79f3e86767fbbcd25b42ef70ec334835a3a6d792e170a432ce0cb7bde9aaa1e75637c1c34ae5fef4338f53db8b13a4d2df594efbfa08784543815c9c0d487bddfa1539bc252cf43ec3686e9802d651cfd2a829a06a9f332a733a4a8aed80efe3478093fbc69c8608146b3f16f1a5c4eac9320da49f1afa5f538ddecbbe7888f435512d0dd74fd9b8c99e3145ba84410d8ca9a36dd884109e76e5fb8222a52e1473da168519ce7a8a3c32e9149671b16724c6c5c51bb5cd64fb591e567fb78b10f9f6fee62c276f282a7df6bcf7c17747bc9a81e6c9c3b032fdd0e1c3ac9eaa5077de3ded18b2ed4faf328f49875af2e36ad5ce5f6cc99ef4b60e57b3b5b9c9fcbcd4cfb3975e70ce4c2506bcd71fef0e53592461504e3d42c885caab21b782e26294c6a9d61118cc40a26f378441ceb48f31a362bf8502a723a36c63502229a462cc2a3796279a5e3a7f81a68c7f81312c381cc16a4ab03513a51ad5b54306ec1d78a5e47e2b15e5b7a1438e5b8b2882dbdad13d6a4a8c3558cae043501b68eb3b040067152>'
-AWG_QUIC_I2='<b 0x0000000000010000000000000000000000000000000000000000000000000000>'
-AWG_QUIC_J1='<b 0x1234567890abcdef>'
+AWG_QUIC_I1='<b 0xc70000000108ce1bf31eec7d93360000449e227e4596ed7f75c4d35ce31880b4133107c822c6355b51f0d7c1bba96d5c210a48aca01885fed0871cfc37d59137d73b506dc013bb4a13c060ca5b04b7ae215af71e37d6e8ff1db235f9fe0c25cb8b492471054a7c8d0d6077d430d07f6e87a8699287f6e69f54263c7334a8e144a29851429bf2e350e519445172d36953e96085110ce1fb641e5efad42c0feb4711ece959b72cc4d6f3c1e83251adb572b921534f6ac4b10927167f41fe50040a75acef62f45bded67c0b45b9d655ce374589cad6f568b8475b2e8921ff98628f86ff2eb5bcce6f3ddb7dc89e37c5b5e78ddc8d93a58896e530b5f9f1448ab3b7a1d1f24a63bf981634f6183a21af310ffa52e9ddf5521561760288669de01a5f2f1a4f922e68d0592026bbe4329b654d4f5d6ace4f6a23b8560b720a5350691c0037b10acfac9726add44e7d3e880ee6f3b0d6429ff33655c297fee786bb5ac032e48d2062cd45e305e6d8d8b82bfbf0fdbc5ec09943d1ad02b0b5868ac4b24bb10255196be883562c35a713002014016b8cc5224768b3d330016cf8ed9300fe6bf39b4b19b3667cddc6e7c7ebe4437a58862606a2a66bd4184b09ab9d2cd3d3faed4d2ab71dd821422a9540c4c5fa2a9b2e6693d411a22854a8e541ed930796521f03a54254074bc4c5bca152a1723260e7d70a24d49720acc544b41359cfc252385bda7de7d05878ac0ea0343c77715e145160e6562161dfe2024846dfda3ce99068817a2418e66e4f37dea40a21251c8a034f83145071d93baadf050ca0f95dc9ce2338fb082d64fbc8faba905cec66e65c0e1f9b003c32c943381282d4ab09bef9b6813ff3ff5118623d2617867e25f0601df583c3ac51bc6303f79e68d8f8de4b8363ec9c7728b3ec5fcd5274edfca2a42f2727aa223c557afb33f5bea4f64aeb252c0150ed734d4d8eccb257824e8e090f65029a3a042a51e5cc8767408ae07d55da8507e4d009ae72c47ddb138df3cab6cc023df2532f88fb5a4c4bd917fafde0f3134be09231c389c70bc55cb95a779615e8e0a76a2b4d943aabfde0e394c985c0cb0376930f92c5b6998ef49ff4a13652b787503f55c4e3d8eebd6e1bc6db3a6d405d8405bd7a8db7cefc64d16e0d105a468f3d33d29e5744a24c4ac43ce0eb1bf6b559aed520b91108cda2de6e2c4f14bc4f4dc58712580e07d217c8cca1aaf7ac04bab3e7b1008b966f1ed4fba3fd93a0a9d3a27127e7aa587fbcc60d548300146bdc126982a58ff5342fc41a43f83a3d2722a26645bc961894e339b953e78ab395ff2fb854247ad06d446cc2944a1aefb90573115dc198f5c1efbc22bc6d7a74e41e666a643d5f85f57fde81b87ceff95353d22ae8bab11684180dd142642894d8dc34e402f802c2fd4a73508ca99124e428d67437c871dd96e506ffc39c0fc401f666b437adca41fd563cbcfd0fa22fbbf8112979c4e677fb533d981745cceed0fe96da6cc0593c430bbb71bcbf924f70b4547b0bb4d41c94a09a9ef1147935a5c75bb2f721fbd24ea6a9f5c9331187490ffa6d4e34e6bb30c2c54a0344724f01088fb2751a486f425362741664efb287bce66c4a544c96fa8b124d3c6b9eaca170c0b530799a6e878a57f402eb0016cf2689d55c76b2a91285e2273763f3afc5bc9398273f5338a06d>'
 
 AWG_DNS_I1='<b 0x123401000001000000000000076578616d706c6503636f6d0000010001>'
 
 AWG_SIP_I1='<b 0x494e56495445207369703a626f624062696c6f78692e636f6d205349502f322e300d0a5669613a205349502f322e302f5544502070633333>'
 AWG_SIP_I2='<b 0x5349502f322e302031303020547279696e670d0a5669613a205349502f322e302f5544502070633333>'
-AWG_SIP_J1='<b 0xabcdef1234567890>'
 
 # =============================================================================
 # apply_awg_profile - Generate runtime config with profile-specific parameters
@@ -74,10 +81,8 @@ apply_awg_profile() {
 
 # Profile: quic (QUIC/HTTP3 protocol mimic)
 # Injects QUIC Long Header Initial packet signature
-i1 = $AWG_QUIC_I1
-i2 = $AWG_QUIC_I2
-j1 = $AWG_QUIC_J1
-itime = 120
+# Official I1 param from AmneziaVPN docs (0xc7 header byte)
+I1 = $AWG_QUIC_I1
 EOF
             ;;
 
@@ -87,8 +92,7 @@ EOF
 
 # Profile: dns (DNS query protocol mimic)
 # Injects DNS query packet signature
-i1 = $AWG_DNS_I1
-itime = 120
+I1 = $AWG_DNS_I1
 EOF
             ;;
 
@@ -98,10 +102,8 @@ EOF
 
 # Profile: sip (SIP/VoIP protocol mimic)
 # Injects SIP INVITE packet signature
-i1 = $AWG_SIP_I1
-i2 = $AWG_SIP_I2
-j1 = $AWG_SIP_J1
-itime = 120
+I1 = $AWG_SIP_I1
+I2 = $AWG_SIP_I2
 EOF
             ;;
 
@@ -114,10 +116,7 @@ EOF
 Jc = 16
 Jmin = 100
 Jmax = 200
-i1 = $AWG_QUIC_I1
-i2 = $AWG_QUIC_I2
-j1 = $AWG_QUIC_J1
-itime = 120
+I1 = $AWG_QUIC_I1
 EOF
             ;;
 
