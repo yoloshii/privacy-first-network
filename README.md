@@ -208,18 +208,18 @@ Some ISPs and countries use **Deep Packet Inspection (DPI)** to identify and blo
 
 | Parameter | Purpose |
 |-----------|---------|
-| Jc | Junk packet count |
-| Jmin/Jmax | Junk packet size range |
-| S1/S2 | Init packet magic |
-| H1-H4 | Header obfuscation |
+| Jc, Jmin, Jmax | Junk packets sent before handshake |
+| H1-H4 | Header obfuscation values |
+| S1-S4 | Packet padding sizes |
+| **I1-I5** | **Protocol mimicry blobs (QUIC, DNS, etc.)** |
 
-These parameters make the traffic look like random noise rather than a VPN connection.
+These parameters disguise WireGuard traffic. The I1-I5 parameters are particularly powerful - they inject packets that look like other protocols (QUIC/HTTP3, DNS queries) before the WireGuard handshake even begins.
 
-**Important: Obfuscation is CLIENT-SIDE only.** The AmneziaWG client adds junk packets and modifies headers before sending, but the VPN server receives valid WireGuard packets. This means:
+**Important: Obfuscation is CLIENT-SIDE only.** The junk packets and protocol mimicry happen locally - the VPN server only sees the valid WireGuard handshake that follows. This means:
 
 - **Any standard WireGuard server works** - Mullvad, IVPN, Proton, etc.
 - **VPN providers don't provide these parameters** - their servers are standard WireGuard
-- **This repo includes working defaults** - derived from [wgtunnel](https://github.com/zaneschepke/wgtunnel)'s compatibility mode
+- **This repo includes working defaults** - from official [AmneziaWG documentation](https://amneziavpn.org/documentation/instructions/new-amneziawg-selfhosted)
 
 **When do you need this?**
 - ISP throttles or blocks VPN traffic
@@ -415,12 +415,14 @@ AmneziaWG adds **client-side** traffic obfuscation to defeat deep packet inspect
 
 **Key point:** AmneziaWG obfuscation works with **any standard WireGuard server**. The obfuscation happens locally on your client - the server doesn't need special support. VPN providers (Mullvad, IVPN, etc.) don't provide these parameters because their servers are standard WireGuard.
 
-**This repo includes working defaults** derived from [wgtunnel](https://github.com/zaneschepke/wgtunnel)'s AmneziaWG compatibility mode. Use them as-is with any WireGuard provider.
+**This repo includes working defaults** from official [AmneziaWG documentation](https://amneziavpn.org/documentation/instructions/new-amneziawg-selfhosted). Use them as-is with any WireGuard provider.
 
 | Option | Setup | Best For |
 |--------|-------|----------|
 | **Any WireGuard provider** | Use default params in this repo | Most users needing obfuscation |
 | **Self-hosted AmneziaWG** | Configure matching params both sides | Custom server setups |
+
+**Coming soon: Tiered obfuscation profiles** - Escalating DPI resistance through modular config rotation (basic → QUIC mimicry → stealth). See `scripts/awg-profiles.sh` for current profiles.
 
 **Example configs included:**
 - `openwrt/amneziawg/awg0.conf.example` - Tunnel config with working obfuscation defaults

@@ -968,7 +968,7 @@ curl https://ipinfo.io/ip
 [Interface]
 PrivateKey = YOUR_MULLVAD_PRIVATE_KEY
 
-# Obfuscation parameters (Mullvad uses standard WireGuard)
+# Basic obfuscation (junk packets + header manipulation)
 Jc = 4
 Jmin = 40
 Jmax = 70
@@ -979,12 +979,26 @@ H2 = 2
 H3 = 3
 H4 = 4
 
+# QUIC protocol mimicry (recommended for DPI-heavy networks)
+# Uncomment below to make traffic appear as QUIC/HTTP3
+# I1 = <b 0xc70000000108ce1bf31eec7d93360000449e227e4596ed7f75c4d35ce31880b4...>
+# (Full QUIC blob in openwrt/amneziawg/awg0.conf.example)
+
 [Peer]
 PublicKey = MULLVAD_SERVER_PUBLIC_KEY
 AllowedIPs = 0.0.0.0/0, ::/0
 Endpoint = MULLVAD_SERVER_IP:51820
 PersistentKeepalive = 25
 ```
+
+**Obfuscation Levels:**
+| Level | Params | Use Case |
+|-------|--------|----------|
+| Basic | Jc, Jmin, Jmax, H1-H4 | Standard DPI bypass |
+| QUIC Mimicry | + I1 (QUIC blob) | Traffic appears as HTTP/3 |
+| Stealth | + Jc=16, aggressive junk | Maximum obfuscation |
+
+See `scripts/awg-profiles.sh` for profile definitions and `openwrt/amneziawg/awg0.conf.example` for full QUIC I1 parameter.
 
 ### Mullvad Server Selection
 
@@ -1025,7 +1039,9 @@ If you encounter unfamiliar scenarios, research these topics:
 
 ### AmneziaWG Obfuscation
 - If standard WireGuard is blocked, user needs AmneziaWG
-- Obfuscation parameters come from VPN provider or Amnezia VPN app
+- **Obfuscation is 100% client-side** — VPN providers (Mullvad, IVPN, Proton) use standard WireGuard servers
+- Parameters from official [AmneziaWG documentation](https://amneziavpn.org/documentation/instructions/new-amneziawg-selfhosted)
+- This repo includes working configs: `docker/config/awg0.conf.example`
 - Reference: https://github.com/amnezia-vpn/amneziawg-tools
 
 ---
