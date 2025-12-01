@@ -41,6 +41,11 @@ The primary secret is the **VPN private key** from the user's provider account.
 3. Agent reads from `secrets.env` when deploying
 4. `secrets.env` is gitignored - secrets never leave user's machine
 
+> **Note:** This is NOT a traditional `.env` file loaded into app environment variables.
+> It's a **secrets reference file** - the agent reads values during deployment and
+> injects them into configuration files (e.g., `awg0.conf`). No runtime environment
+> variables are involved.
+
 ```bash
 # User prepares secrets before deployment:
 cp secrets.env.example secrets.env
