@@ -31,17 +31,24 @@ Probe the user's environment automatically where possible:
 ```
 
 ### 2. User Input (Secrets Only)
-**Only prompt the user for actual secrets** that cannot be discovered.
+**When a secret is needed in the flow, prompt for user permission before handling it.**
 
-**Permission required:** Before ingesting any secret, ask the user if they consent to providing it to the agent. If they decline, they must input the value manually into config files.
+The primary secret is the **VPN private key** from the user's provider account.
+
+**Consent flow:**
+1. When the deployment flow requires a secret (e.g., VPN private key for config)
+2. Ask the user: "I need your VPN private key. Would you like me to handle it, or would you prefer to input it manually into the config file?"
+3. If user consents to agent handling → they provide the secret, agent configures it
+4. If user declines → provide the config file path and field name, user inputs manually
 
 ```
-□ VPN private key (generated or from provider account)
-□ VPN account credentials (if downloading config)
-□ Desired passwords for router/AdGuard admin
+Secrets requiring consent:
+□ VPN private key (from provider account page)
+□ VPN account credentials (only if downloading config via API)
+□ Admin passwords (router/AdGuard - if user wants agent to set them)
 ```
 
-Do NOT prompt for values that can be discovered or researched.
+Do NOT prompt for values that can be discovered or researched (IPs, public keys, endpoints).
 
 ### 3. Deep Research (Current/External Values)
 Use web research for values requiring up-to-date discovery:
