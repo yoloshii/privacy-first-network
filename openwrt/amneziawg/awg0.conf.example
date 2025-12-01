@@ -11,22 +11,30 @@ PrivateKey = YOUR_PRIVATE_KEY_BASE64
 # =============================================================================
 # AmneziaWG Obfuscation Parameters
 # =============================================================================
-# These parameters MUST match your VPN server configuration exactly
-# Get these values from your VPN provider or server config
+# These parameters add client-side obfuscation to disguise WireGuard traffic.
+# The obfuscation happens LOCALLY - servers don't need to support AmneziaWG.
+#
+# IMPORTANT: Most VPN providers (Mullvad, IVPN, Proton, etc.) do NOT provide
+# AmneziaWG parameters because they use standard WireGuard servers.
+#
+# The values below are WORKING DEFAULTS compatible with ANY standard WireGuard
+# server. Source: wgtunnel's AmneziaWG compatibility mode.
+# https://github.com/zaneschepke/wgtunnel
+#
+# Use these as-is - no need to get values from your provider.
 
-# Jc: Number of junk packets during handshake (1-128)
-# Higher = more obfuscation, more overhead
+# Jc: Junk packets during handshake (DPI obfuscation)
 Jc = 4
 
-# Jmin/Jmax: Size range of junk packets in bytes (0-1280)
+# Jmin/Jmax: Size range of junk packets in bytes
 Jmin = 40
 Jmax = 70
 
-# S1/S2: Init packet magic header values (0-2147483647)
+# S1/S2: Init packet padding (0 for standard WireGuard compatibility)
 S1 = 0
 S2 = 0
 
-# H1-H4: Header obfuscation values (0-2147483647)
+# H1-H4: Header obfuscation (sequential for standard WireGuard compatibility)
 H1 = 1
 H2 = 2
 H3 = 3

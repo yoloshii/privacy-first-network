@@ -138,7 +138,10 @@ Create `/etc/amneziawg/awg0.conf`:
 [Interface]
 PrivateKey = YOUR_PRIVATE_KEY_HERE
 
-# AmneziaWG obfuscation (get these from your VPN provider)
+# AmneziaWG obfuscation parameters
+# These add CLIENT-SIDE obfuscation - servers don't need to support AmneziaWG.
+# The defaults below work with ANY standard WireGuard server (Mullvad, IVPN, etc.)
+# Source: wgtunnel compatibility mode (https://github.com/zaneschepke/wgtunnel)
 Jc = 4
 Jmin = 40
 Jmax = 70
@@ -188,7 +191,32 @@ uci set firewall.lan_vpn.dest='vpn'
 uci commit firewall
 ```
 
-### A6. Install Startup Scripts
+### A6. Install Obfuscation Profiles (Optional)
+
+For environments with deep packet inspection, install the profile library:
+
+```bash
+# Copy profile library
+cp scripts/awg-profiles.sh /etc/amneziawg/awg-profiles.sh
+chmod +x /etc/amneziawg/awg-profiles.sh
+```
+
+Available profiles:
+
+| Profile | DPI Resistance | Use Case |
+|---------|----------------|----------|
+| `basic` | Medium | Home ISP, light censorship (default) |
+| `quic` | High | Moderate DPI, traffic appears as HTTP/3 |
+| `dns` | Medium | Environments where DNS traffic is allowed |
+| `sip` | Medium | Environments where VoIP traffic is common |
+| `stealth` | Maximum | Heavy censorship, aggressive DPI |
+
+Set the profile in your scripts (watchdog and hotplug):
+```bash
+AWG_PROFILE="quic"  # or dns, sip, stealth
+```
+
+### A7. Install Startup Scripts
 
 Copy from `scripts/` directory:
 
@@ -254,7 +282,7 @@ sudo systemctl status adguardhome
 | `ENDPOINT_IP` | VPN server IP address | Resolve provider hostname or server list |
 | `WAN_GATEWAY` | Usually "auto" (auto-detected) | `auto` or your modem's IP (e.g., `192.168.1.1`) |
 
-### A7. Test VPN Manually
+### A8. Test VPN Manually
 
 ```bash
 # Create interface
@@ -279,7 +307,7 @@ curl https://am.i.mullvad.net/ip
 # Should show VPN exit IP, not your real IP
 ```
 
-### A8. Deploy AdGuard Home
+### A9. Deploy AdGuard Home
 
 **Option 1: On OpenWrt (limited resources)**
 
@@ -307,7 +335,7 @@ curl -s -S -L https://raw.githubusercontent.com/AdguardTeam/AdGuardHome/master/s
 # Configure at http://adguard-ip:3000
 ```
 
-### A9. Configure DHCP to Push AdGuard DNS
+### A10. Configure DHCP to Push AdGuard DNS
 
 On OpenWrt:
 
@@ -318,7 +346,7 @@ uci commit dhcp
 /etc/init.d/dnsmasq restart
 ```
 
-### A10. Configure AdGuard Upstream DNS
+### A11. Configure AdGuard Upstream DNS
 
 In AdGuard web UI (Settings → DNS Settings → Upstream DNS):
 
@@ -339,7 +367,7 @@ Enable:
 - Parallel requests
 - Cache enabled
 
-### A11. Security Hardening
+### A12. Security Hardening
 
 ```bash
 # Disable IPv6 (prevents leaks)
@@ -366,7 +394,7 @@ uci commit uhttpd
 /etc/init.d/uhttpd restart
 ```
 
-### A12. Final Cutover
+### A13. Final Cutover
 
 1. **Set existing router to AP mode**
    - Disable DHCP

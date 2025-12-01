@@ -104,7 +104,10 @@ Fill in your VPN credentials from your provider:
 [Interface]
 PrivateKey = YOUR_PRIVATE_KEY_HERE
 
-# AmneziaWG obfuscation (get from provider or generate)
+# AmneziaWG obfuscation parameters
+# These add CLIENT-SIDE obfuscation - servers don't need AmneziaWG support.
+# The defaults below work with ANY standard WireGuard server (Mullvad, IVPN, etc.)
+# Source: wgtunnel compatibility mode (https://github.com/zaneschepke/wgtunnel)
 Jc = 4
 Jmin = 40
 Jmax = 70
@@ -282,6 +285,33 @@ docker exec privacy-router tail -f /var/log/awg-watchdog.log
 # Edit .env: WATCHDOG_FAIL_THRESHOLD=5
 ```
 
+## Obfuscation Profiles (AmneziaWG 1.5)
+
+Choose your obfuscation level in `.env`:
+
+```bash
+AWG_PROFILE=quic  # Enable QUIC protocol mimic
+```
+
+| Profile | DPI Resistance | Use Case |
+|---------|----------------|----------|
+| `basic` | Medium | Home ISP, light censorship (default) |
+| `quic` | High | Moderate DPI, traffic appears as HTTP/3 |
+| `dns` | Medium | Environments where DNS traffic is allowed |
+| `sip` | Medium | Environments where VoIP traffic is common |
+| `stealth` | Maximum | Heavy censorship, aggressive DPI |
+
+**All profiles work with standard WireGuard servers** (Mullvad, IVPN, Proton, etc.). The obfuscation is client-side only.
+
+**Switching profiles:**
+```bash
+# Edit .env
+AWG_PROFILE=quic
+
+# Restart container
+docker compose restart
+```
+
 ## Environment Variables
 
 | Variable | Default | Description |
@@ -293,6 +323,7 @@ docker exec privacy-router tail -f /var/log/awg-watchdog.log
 | `LAN_SUBNET` | 192.168.1.0/24 | Local network CIDR |
 | `LAN_GATEWAY` | 192.168.1.1 | LAN router IP |
 | `CONTAINER_LAN_IP` | 192.168.1.250 | Container's LAN IP |
+| `AWG_PROFILE` | basic | Obfuscation profile (basic/quic/dns/sip/stealth) |
 | `WATCHDOG_ENABLED` | true | Enable auto-recovery |
 | `WATCHDOG_INTERVAL` | 30 | Seconds between checks |
 | `WATCHDOG_FAIL_THRESHOLD` | 3 | Failures before restart |

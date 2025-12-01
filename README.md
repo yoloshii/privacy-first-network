@@ -23,7 +23,7 @@ Turn a Raspberry Pi or mini PC into a VPN gateway that protects your entire home
 
 **Works with:** Any WireGuard-compatible VPN provider (Mullvad, IVPN, AirVPN, etc.)
 
-**AmneziaWG obfuscation:** Mullvad + custom params or self-hosted Amnezia server
+**AmneziaWG obfuscation:** Works with any standard WireGuard server (client-side obfuscation)
 
 ---
 
@@ -204,7 +204,7 @@ Even if somehow a forwarding rule existed, the routing table provides a second l
 
 Some ISPs and countries use **Deep Packet Inspection (DPI)** to identify and block VPN traffic. Standard WireGuard has a recognizable packet signature.
 
-**AmneziaWG** is an obfuscated fork of WireGuard that adds:
+**AmneziaWG** is an obfuscated fork of WireGuard that adds **client-side obfuscation**:
 
 | Parameter | Purpose |
 |-----------|---------|
@@ -213,7 +213,13 @@ Some ISPs and countries use **Deep Packet Inspection (DPI)** to identify and blo
 | S1/S2 | Init packet magic |
 | H1-H4 | Header obfuscation |
 
-These parameters make the traffic look like random noise rather than a VPN connection. Your VPN provider supplies these values.
+These parameters make the traffic look like random noise rather than a VPN connection.
+
+**Important: Obfuscation is CLIENT-SIDE only.** The AmneziaWG client adds junk packets and modifies headers before sending, but the VPN server receives valid WireGuard packets. This means:
+
+- **Any standard WireGuard server works** - Mullvad, IVPN, Proton, etc.
+- **VPN providers don't provide these parameters** - their servers are standard WireGuard
+- **This repo includes working defaults** - derived from [wgtunnel](https://github.com/zaneschepke/wgtunnel)'s compatibility mode
 
 **When do you need this?**
 - ISP throttles or blocks VPN traffic
@@ -402,18 +408,23 @@ If you prefer a different provider, any WireGuard-compatible VPN works with this
 
 ### AmneziaWG Obfuscation (Optional)
 
-AmneziaWG adds traffic obfuscation to defeat deep packet inspection. **Most users don't need this** - it's for situations where:
+AmneziaWG adds **client-side** traffic obfuscation to defeat deep packet inspection. **Most users don't need this** - it's for situations where:
 - Your ISP throttles or blocks VPN traffic
 - Network administrators block WireGuard
 - You need extra protection against traffic analysis
 
+**Key point:** AmneziaWG obfuscation works with **any standard WireGuard server**. The obfuscation happens locally on your client - the server doesn't need special support. VPN providers (Mullvad, IVPN, etc.) don't provide these parameters because their servers are standard WireGuard.
+
+**This repo includes working defaults** derived from [wgtunnel](https://github.com/zaneschepke/wgtunnel)'s AmneziaWG compatibility mode. Use them as-is with any WireGuard provider.
+
 | Option | Setup | Best For |
 |--------|-------|----------|
-| **Mullvad + AWG params** | Use included example params | Most users needing obfuscation |
-| **Self-hosted Amnezia** | Run your own server | Maximum control |
+| **Any WireGuard provider** | Use default params in this repo | Most users needing obfuscation |
+| **Self-hosted AmneziaWG** | Configure matching params both sides | Custom server setups |
 
-**Mullvad-specific example configs included:**
-- `openwrt/amneziawg/mullvad-awg0.conf.example` - Tunnel config with obfuscation
+**Example configs included:**
+- `openwrt/amneziawg/awg0.conf.example` - Tunnel config with working obfuscation defaults
+- `docker/config/awg0.conf.example` - Docker deployment config
 - `adguard/mullvad-AdGuardHome.yaml.example` - DNS using Mullvad DoH
 
 ### High-Censorship Environments

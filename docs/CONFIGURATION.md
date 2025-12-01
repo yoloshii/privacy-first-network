@@ -25,11 +25,19 @@ Complete reference for all configuration files and options.
 PrivateKey = YOUR_PRIVATE_KEY
 
 # AmneziaWG Obfuscation Parameters
-# These MUST match your VPN server configuration
+# These add CLIENT-SIDE obfuscation to disguise WireGuard traffic.
+# The obfuscation happens LOCALLY - servers don't need AmneziaWG support.
+#
+# IMPORTANT: Most VPN providers (Mullvad, IVPN, Proton, etc.) do NOT provide
+# AmneziaWG parameters because they use standard WireGuard servers.
+#
+# The defaults below are WORKING VALUES compatible with ANY standard WireGuard
+# server. Source: wgtunnel's AmneziaWG compatibility mode.
+# https://github.com/zaneschepke/wgtunnel
 
 # Jc: Number of junk packets to send during handshake
 # Higher = more obfuscation, more overhead
-# Range: 1-128, Recommended: 3-8
+# Range: 1-128, Default: 4
 Jc = 4
 
 # Jmin/Jmax: Min/max size of junk packets in bytes
@@ -39,11 +47,13 @@ Jmin = 40
 Jmax = 70
 
 # S1/S2: Init packet magic header manipulation
+# Set to 0 for standard WireGuard compatibility
 # Range: 0-2147483647
 S1 = 0
 S2 = 0
 
 # H1-H4: Header field obfuscation
+# Sequential values (1,2,3,4) for standard WireGuard compatibility
 # Range: 0-2147483647
 H1 = 1
 H2 = 2
@@ -81,19 +91,56 @@ amneziawg pubkey < privatekey > publickey
 amneziawg genpsk > presharedkey
 ```
 
+### Obfuscation Profiles (AmneziaWG 1.5)
+
+The `awg-profiles.sh` library provides pre-configured obfuscation profiles that inject protocol-signature packets for DPI evasion:
+
+| Profile | Mimics | DPI Resistance | Parameters Added |
+|---------|--------|----------------|------------------|
+| `basic` | None | Medium | Base Jc/H1-H4 only |
+| `quic` | HTTP/3 | High | i1 (QUIC Initial), i2, j1, itime |
+| `dns` | DNS query | Medium | i1 (DNS query), itime |
+| `sip` | VoIP | Medium | i1 (SIP INVITE), i2, j1, itime |
+| `stealth` | HTTP/3 | Maximum | QUIC + Jc=16, Jmin=100, Jmax=200 |
+
+**Installation:**
+```bash
+# OpenWrt
+cp scripts/awg-profiles.sh /etc/amneziawg/awg-profiles.sh
+
+# Docker (included automatically)
+```
+
+**Configuration:**
+```bash
+# In watchdog or hotplug scripts
+AWG_PROFILE="quic"
+
+# In Docker .env
+AWG_PROFILE=quic
+```
+
+All profiles work with standard WireGuard servers (Mullvad, IVPN, Proton).
+
 ### Provider-Specific Notes
 
-**Mullvad:**
-- Download WireGuard config from account page
-- Mullvad doesn't officially support AmneziaWG
-- Use standard WireGuard values and add AWG parameters
-- AWG parameters must be set to match (usually defaults)
+**Understanding AmneziaWG with Standard VPN Providers:**
 
-**IVPN:**
-- Similar to Mullvad - add AWG parameters to standard config
+AmneziaWG obfuscation is **client-side only**. The client adds junk packets and header modifications before sending, and the server receives valid WireGuard packets. This means:
 
-**Self-hosted:**
-- Configure matching AWG parameters on server
+- **Any standard WireGuard server works** - no special server support needed
+- **VPN providers don't provide AWG parameters** - because their servers are standard WireGuard
+- **Use the default values in this repo** - they're tested with Mullvad, IVPN, and other providers
+
+**Mullvad / IVPN / Proton / Others:**
+1. Download WireGuard config from your provider's account page
+2. Copy `PrivateKey` and `PublicKey` values to your awg0.conf
+3. Keep the default AWG obfuscation parameters (Jc, Jmin, Jmax, S1, S2, H1-H4)
+4. These defaults work with all standard WireGuard servers
+
+**Self-hosted AmneziaWG:**
+- If running your own AmneziaWG server, configure matching parameters on both sides
+- For standard WireGuard server, use the defaults in this repo
 
 ---
 
