@@ -55,6 +55,23 @@ MIN_PROBES=2
 # Get this from your provider's WireGuard config generator
 VPN_IP="CHANGE_ME"
 
+# Obfuscation profile (AmneziaWG 1.5)
+# Options: basic, quic, dns, sip, stealth
+# All profiles work with standard WireGuard servers
+AWG_PROFILE="basic"
+
+# =============================================================================
+# PROFILE SUPPORT
+# =============================================================================
+# Source shared profile library if available
+PROFILES_LIB="/etc/amneziawg/awg-profiles.sh"
+if [ -f "$PROFILES_LIB" ]; then
+    . "$PROFILES_LIB"
+    PROFILES_AVAILABLE=1
+else
+    PROFILES_AVAILABLE=0
+fi
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
@@ -164,6 +181,7 @@ switch_server() {
     # Uses base config and updates endpoint
     local base_config="$CONFIG_DIR/awg0.conf"
     local runtime_config="/tmp/awg0-runtime.conf"
+    local final_config="/tmp/awg0-final.conf"
 
     # Copy base config and update endpoint
     sed "s/^Endpoint=.*/Endpoint=$endpoint:$port/" "$base_config" > "$runtime_config"
@@ -172,6 +190,13 @@ switch_server() {
     # Use "-" in servers.conf to keep base config's key (same-city servers)
     if [ -n "$pubkey" ] && [ "$pubkey" != "-" ]; then
         sed -i "s/^PublicKey=.*/PublicKey=$pubkey/" "$runtime_config"
+    fi
+
+    # 3b. Apply obfuscation profile (AmneziaWG 1.5)
+    if [ "$PROFILES_AVAILABLE" = "1" ]; then
+        apply_awg_profile "$runtime_config" "$final_config" "$AWG_PROFILE"
+        runtime_config="$final_config"
+        log "Applied profile: $(get_awg_profile_description)"
     fi
 
     # 4. Apply configuration

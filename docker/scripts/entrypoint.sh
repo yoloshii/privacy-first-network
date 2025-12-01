@@ -22,6 +22,34 @@ log_error() {
 }
 
 # =============================================================================
+# Obfuscation Profiles (AmneziaWG 1.5)
+# =============================================================================
+# Source shared profile library
+PROFILES_LIB="/opt/scripts/awg-profiles.sh"
+if [[ -f "$PROFILES_LIB" ]]; then
+    source "$PROFILES_LIB"
+fi
+
+apply_obfuscation_profile() {
+    local profile="${AWG_PROFILE:-basic}"
+    local config_file="/etc/amneziawg/awg0.conf"
+    local runtime_config="/tmp/awg0.runtime.conf"
+
+    log "Applying obfuscation profile: $profile"
+
+    # Use shared library if available
+    if [[ -f "$PROFILES_LIB" ]]; then
+        apply_awg_profile "$config_file" "$runtime_config" "$profile"
+        log "Profile: $(get_awg_profile_description "$profile")"
+    else
+        # Fallback: just copy base config
+        cp "$config_file" "$runtime_config"
+        log "Profile library not found, using base config"
+        export AWG_RUNTIME_CONFIG="$runtime_config"
+    fi
+}
+
+# =============================================================================
 # Validation
 # =============================================================================
 validate_config() {
@@ -86,9 +114,10 @@ setup_tunnel() {
     fi
     log "Created awg0 interface (userspace daemon PID: $AWG_PID)"
 
-    # Apply configuration
-    amneziawg setconf awg0 /etc/amneziawg/awg0.conf
-    log "Applied VPN configuration"
+    # Apply configuration (use runtime config with profile if set)
+    local config_to_use="${AWG_RUNTIME_CONFIG:-/etc/amneziawg/awg0.conf}"
+    amneziawg setconf awg0 "$config_to_use"
+    log "Applied VPN configuration from: $config_to_use"
 
     # Add VPN internal IP address
     ip address add "$VPN_IP" dev awg0
@@ -190,10 +219,14 @@ main() {
     log "VPN IP: ${VPN_IP:-not set}"
     log "VPN Endpoint: ${VPN_ENDPOINT_IP:-not set}:${VPN_ENDPOINT_PORT:-51820}"
     log "LAN Subnet: ${LAN_SUBNET:-192.168.1.0/24}"
+    log "Obfuscation: ${AWG_PROFILE:-basic}"
     log "=========================================="
 
     # Validate
     validate_config
+
+    # Apply obfuscation profile (generates runtime config)
+    apply_obfuscation_profile
 
     # Setup tunnel
     setup_tunnel

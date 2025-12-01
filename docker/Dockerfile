@@ -53,12 +53,8 @@ COPY --from=builder /usr/local/bin/amneziawg /usr/local/bin/
 # Create directories
 RUN mkdir -p /etc/amneziawg /opt/scripts /var/log
 
-# Copy scripts (mounted at runtime, but set permissions)
-COPY scripts/entrypoint.sh /opt/scripts/
-COPY scripts/healthcheck.sh /opt/scripts/
-COPY scripts/watchdog.sh /opt/scripts/
-COPY scripts/test-suite.sh /opt/scripts/
-COPY scripts/quick-test.sh /opt/scripts/
+# Copy scripts
+COPY scripts/ /opt/scripts/
 
 # Make scripts executable
 RUN chmod +x /opt/scripts/*.sh
@@ -68,6 +64,7 @@ ENV VPN_IP="" \
     VPN_ENDPOINT_IP="" \
     VPN_ENDPOINT_PORT="51820" \
     LAN_SUBNET="192.168.1.0/24" \
+    AWG_PROFILE="basic" \
     WATCHDOG_ENABLED="true" \
     WATCHDOG_INTERVAL="30" \
     WATCHDOG_FAIL_THRESHOLD="3" \

@@ -44,7 +44,24 @@
     # VPN server endpoint IP
     ENDPOINT_IP="CHANGE_ME"
 
+    # Obfuscation profile (AmneziaWG 1.5)
+    # Options: basic, quic, dns, sip, stealth
+    AWG_PROFILE="basic"
+
     # =========================================================================
+
+    # Source profile library if available
+    PROFILES_LIB="/etc/amneziawg/awg-profiles.sh"
+    RUNTIME_CONFIG="/tmp/awg0-runtime.conf"
+
+    if [ -f "$PROFILES_LIB" ]; then
+        . "$PROFILES_LIB"
+        apply_awg_profile "$CONFIG_FILE" "$RUNTIME_CONFIG" "$AWG_PROFILE"
+        CONFIG_TO_USE="$RUNTIME_CONFIG"
+        logger -t awg-hotplug "Using profile: $AWG_PROFILE"
+    else
+        CONFIG_TO_USE="$CONFIG_FILE"
+    fi
 
     # Create interface
     ip link del dev awg0 2>/dev/null
@@ -55,7 +72,7 @@
     fi
 
     # Apply config
-    /usr/bin/amneziawg setconf awg0 "$CONFIG_FILE"
+    /usr/bin/amneziawg setconf awg0 "$CONFIG_TO_USE"
     if [ $? -ne 0 ]; then
         logger -t awg-hotplug "ERROR: Failed to apply config from $CONFIG_FILE"
         exit 1
