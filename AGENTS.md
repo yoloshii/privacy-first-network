@@ -31,22 +31,33 @@ Probe the user's environment automatically where possible:
 ```
 
 ### 2. User Input (Secrets Only)
-**When a secret is needed in the flow, prompt for user permission before handling it.**
+**Secrets are provided via `secrets.env` - a single file the user controls.**
 
 The primary secret is the **VPN private key** from the user's provider account.
 
-**Consent flow:**
-1. When the deployment flow requires a secret (e.g., VPN private key for config)
-2. Ask the user: "I need your VPN private key. Would you like me to handle it, or would you prefer to input it manually into the config file?"
-3. If user consents to agent handling → they provide the secret, agent configures it
-4. If user declines → provide the config file path and field name, user inputs manually
+**Secrets workflow:**
+1. User copies `secrets.env.example` to `secrets.env`
+2. User fills in their VPN private key (and optionally admin passwords)
+3. Agent reads from `secrets.env` when deploying
+4. `secrets.env` is gitignored - secrets never leave user's machine
 
+```bash
+# User prepares secrets before deployment:
+cp secrets.env.example secrets.env
+nano secrets.env  # Fill in VPN_PRIVATE_KEY
 ```
-Secrets requiring consent:
-□ VPN private key (from provider account page)
-□ VPN account credentials (only if downloading config via API)
-□ Admin passwords (router/AdGuard - if user wants agent to set them)
+
+**Contents of secrets.env.example:**
 ```
+VPN_PRIVATE_KEY=           # Required - from VPN provider account
+# ROUTER_ADMIN_PASSWORD=   # Optional - OpenWrt admin
+# ADGUARD_ADMIN_PASSWORD=  # Optional - AdGuard admin
+```
+
+**If user prefers not to use secrets.env:**
+- Agent prompts for permission before handling any secret inline
+- User can decline and input secrets manually into config files
+- Provide file path and field name for manual entry
 
 Do NOT prompt for values that can be discovered or researched (IPs, public keys, endpoints).
 
@@ -355,6 +366,7 @@ Use these example configs, substituting user-specific values:
 | Template | Location | Tested | Notes |
 |----------|----------|:------:|-------|
 | **Core (Required)** | | | |
+| Secrets file | `secrets.env.example` | ✓ | VPN private key, admin passwords |
 | Network interfaces | `openwrt/network/interfaces.example` | ✓ | Generic OpenWrt |
 | Firewall zones (full) | `openwrt/firewall/zones.example` | ✓ | Complete firewall config |
 | Firewall VPN zone | `openwrt/firewall-vpn-zone.example` | ✓ | VPN zone + kill switch only |
