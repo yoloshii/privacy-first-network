@@ -31,38 +31,49 @@ Probe the user's environment automatically where possible:
 ```
 
 ### 2. User Input (Secrets Only)
-**Secrets are provided via `secrets.env` - a single file the user controls.**
+**When a secret is needed, always ask for user consent first.**
 
 The primary secret is the **VPN private key** from the user's provider account.
 
-**Secrets workflow:**
-1. User copies `secrets.env.example` to `secrets.env`
-2. User fills in their VPN private key (and optionally admin passwords)
-3. Agent reads from `secrets.env` when deploying
-4. `secrets.env` is gitignored - secrets never leave user's machine
+**Consent flow (when deployment requires a secret):**
 
-> **Note:** This is NOT a traditional `.env` file loaded into app environment variables.
-> It's a **secrets reference file** - the agent reads values during deployment and
-> injects them into configuration files (e.g., `awg0.conf`). No runtime environment
-> variables are involved.
+1. **Agent asks permission:** "I need your VPN private key to configure the tunnel. How would you like to proceed?"
+
+2. **User chooses one of:**
+   - **Option A:** "I've put it in `secrets.env`" → Agent reads from file
+   - **Option B:** "Here it is: [key]" → User pastes directly in chat
+   - **Option C:** "I'll enter it manually" → Agent provides file path and field name
+
+3. **Agent proceeds** only after user consents and provides the secret via their chosen method
+
+**Option A: secrets.env (convenience file)**
+
+For users who prefer to prepare secrets in advance:
 
 ```bash
-# User prepares secrets before deployment:
 cp secrets.env.example secrets.env
 nano secrets.env  # Fill in VPN_PRIVATE_KEY
 ```
 
-**Contents of secrets.env.example:**
+Contents:
 ```
 VPN_PRIVATE_KEY=           # Required - from VPN provider account
 # ROUTER_ADMIN_PASSWORD=   # Optional - OpenWrt admin
 # ADGUARD_ADMIN_PASSWORD=  # Optional - AdGuard admin
 ```
 
-**If user prefers not to use secrets.env:**
-- Agent prompts for permission before handling any secret inline
-- User can decline and input secrets manually into config files
-- Provide file path and field name for manual entry
+> **Note:** This is NOT a traditional `.env` file loaded into app environment variables.
+> It's a **secrets reference file** - the agent reads values during deployment and
+> injects them into configuration files (e.g., `awg0.conf`). No runtime environment
+> variables are involved. The file is gitignored - secrets never leave user's machine.
+
+**Option C: Manual entry**
+
+If user declines agent handling, provide clear instructions:
+```
+File: /etc/amneziawg/awg0.conf
+Field: PrivateKey = <paste your key here>
+```
 
 Do NOT prompt for values that can be discovered or researched (IPs, public keys, endpoints).
 
