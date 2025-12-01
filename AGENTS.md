@@ -630,6 +630,7 @@ Guidelines:
 
 ### 4.6 Cutover
 
+**Basic cutover checklist:**
 ```
 □ Existing router set to AP/bridge mode
 □ Cables connected: Modem → Privacy Router → WiFi AP
@@ -637,11 +638,106 @@ Guidelines:
 □ Full connectivity test from multiple devices
 ```
 
+#### 4.6.1 Pre-Located Setup Cutover (Optional)
+
+> **When to use:** If you configured and tested the router BEFORE physically relocating it to sit between the modem and network (recommended approach for complex setups). Skip if you deployed directly in final position.
+
+**This approach allows:**
+- Full configuration and testing while existing network remains functional
+- Validation of all components before disrupting production network
+- Easier troubleshooting (existing internet still works)
+
+**Pre-cutover audit (run from router before relocating):**
+```bash
+echo "=== Pre-Cutover Configuration Audit ==="
+
+# 1. Firewall hardening
+echo -n "drop_invalid: "; uci get firewall.@defaults[0].drop_invalid
+echo -n "syn_flood: "; uci get firewall.@defaults[0].syn_flood
+
+# 2. Kill switch (no LAN→WAN forwarding)
+echo "LAN→VPN forwarding:"
+uci show firewall | grep -E "forwarding.*src.*lan.*dest.*vpn" && echo "  ✓ Present" || echo "  ✗ MISSING"
+echo "LAN→WAN forwarding (should be empty):"
+uci show firewall | grep -E "forwarding.*src.*lan.*dest.*wan" && echo "  ✗ EXISTS - KILL SWITCH BROKEN" || echo "  ✓ None (kill switch intact)"
+
+# 3. DNS configuration
+echo -n "DHCP DNS option: "; uci get dhcp.lan.dhcp_option
+
+# 4. DNS hijack prevention
+uci show firewall | grep -q "Block-External-DNS" && echo "DNS hijack prevention: ✓ Present" || echo "DNS hijack prevention: ✗ MISSING"
+
+# 5. VPN tunnel status
+amneziawg show awg0 | grep -E "interface|latest handshake" || wg show awg0 | grep -E "interface|latest handshake"
+
+# 6. Watchdog status
+/etc/init.d/awg-watchdog enabled && echo "Watchdog auto-start: ✓ Enabled" || echo "Watchdog auto-start: ✗ Disabled"
+pgrep -f "awg-watchdog" > /dev/null && echo "Watchdog running: ✓ Yes" || echo "Watchdog running: ✗ No"
+
+# 7. Current IP (will change at cutover)
+echo -n "Current LAN IP: "; uci get network.lan.ipaddr
+```
+
+**Expected output (all should pass):**
+```
+drop_invalid: 1
+syn_flood: 1
+LAN→VPN forwarding:
+  ✓ Present
+LAN→WAN forwarding (should be empty):
+  ✓ None (kill switch intact)
+DHCP DNS option: 6,YOUR_DNS_IP
+DNS hijack prevention: ✓ Present
+interface: awg0
+  latest handshake: X seconds ago
+Watchdog auto-start: ✓ Enabled
+Watchdog running: ✓ Yes
+Current LAN IP: 192.168.1.X (temporary IP)
+```
+
+**Physical cutover steps:**
+
+1. **Set existing router to AP mode FIRST** (before touching privacy router)
+   - Access existing router admin panel
+   - Enable AP/Bridge mode (disables DHCP, NAT, firewall)
+   - Assign static IP (e.g., 192.168.1.4) so you can still access it
+   - Save and wait for reboot
+
+2. **Relocate privacy router**
+   - Power off privacy router
+   - Connect: `Modem/ONT → Privacy Router WAN port`
+   - Connect: `Privacy Router LAN port → Existing Router (now AP)`
+   - Power on privacy router
+
+3. **Change privacy router IP to gateway address**
+   ```bash
+   # SSH may disconnect - have console access ready if virtualized
+   uci set network.lan.ipaddr='192.168.1.1'
+   uci commit network
+   /etc/init.d/network restart
+   ```
+
+4. **Verify from client device**
+   - Disconnect/reconnect WiFi to get new DHCP lease
+   - Check gateway is now privacy router: `ip route` or network settings
+   - Visit https://am.i.mullvad.net (or your VPN's check page)
+   - Verify DNS filtering: `nslookup doubleclick.net` should return 0.0.0.0
+
+**Rollback if cutover fails:**
+```
+1. Power off privacy router
+2. Reconnect modem directly to existing router
+3. Set existing router back to Router mode (re-enable DHCP)
+4. Debug privacy router separately before retry
+```
+
 ---
 
 ## Phase 5: Validation Tests
 
-After deployment, run these verification tests.
+After deployment, run comprehensive verification. **Do not consider deployment complete until all tests pass.**
+
+### 5.1 Quick Functional Tests
 
 **Docker users (Option C):** Use the built-in test scripts:
 ```bash
@@ -677,6 +773,154 @@ curl -6 --connect-timeout 5 https://ipv6.icanhazip.com 2>/dev/null || echo "PASS
 
 # No DNS leaks
 # Visit: https://dnsleaktest.com from a client device
+```
+
+### 5.2 Comprehensive Configuration Audit
+
+**Audit deployed config against repo templates to ensure nothing was missed:**
+
+```bash
+echo "=========================================="
+echo "COMPREHENSIVE CONFIGURATION AUDIT"
+echo "=========================================="
+
+# ===== FIREWALL DEFAULTS =====
+echo -e "\n[1/8] Firewall Defaults"
+echo "---"
+drop_inv=$(uci get firewall.@defaults[0].drop_invalid 2>/dev/null)
+syn_flood=$(uci get firewall.@defaults[0].syn_flood 2>/dev/null)
+input=$(uci get firewall.@defaults[0].input 2>/dev/null)
+forward=$(uci get firewall.@defaults[0].forward 2>/dev/null)
+
+[ "$drop_inv" = "1" ] && echo "✓ drop_invalid: enabled" || echo "✗ drop_invalid: MISSING (add: uci set firewall.@defaults[0].drop_invalid='1')"
+[ "$syn_flood" = "1" ] && echo "✓ syn_flood: enabled" || echo "✗ syn_flood: MISSING"
+[ "$input" = "REJECT" ] && echo "✓ default input: REJECT" || echo "✗ default input: $input (should be REJECT)"
+[ "$forward" = "REJECT" ] && echo "✓ default forward: REJECT" || echo "✗ default forward: $forward (should be REJECT)"
+
+# ===== ZONES =====
+echo -e "\n[2/8] Firewall Zones"
+echo "---"
+uci show firewall | grep -q "zone.*name='lan'" && echo "✓ LAN zone exists" || echo "✗ LAN zone MISSING"
+uci show firewall | grep -q "zone.*name='wan'" && echo "✓ WAN zone exists" || echo "✗ WAN zone MISSING"
+uci show firewall | grep -q "zone.*name='vpn'" && echo "✓ VPN zone exists" || echo "✗ VPN zone MISSING"
+
+wan_masq=$(uci show firewall | grep -E "zone.*wan" -A5 | grep "masq='1'" || true)
+vpn_masq=$(uci show firewall | grep -E "zone.*vpn|vpn.*masq" | grep "masq='1'" || true)
+[ -n "$wan_masq" ] && echo "✓ WAN masquerade: enabled" || echo "✗ WAN masquerade: MISSING"
+[ -n "$vpn_masq" ] && echo "✓ VPN masquerade: enabled" || echo "✗ VPN masquerade: MISSING"
+
+# ===== KILL SWITCH =====
+echo -e "\n[3/8] Kill Switch (Critical)"
+echo "---"
+lan_vpn=$(uci show firewall | grep -E "forwarding.*lan.*vpn|forwarding.*src='lan'.*dest='vpn'" || true)
+lan_wan=$(uci show firewall | grep -E "forwarding.*lan.*wan|forwarding.*src='lan'.*dest='wan'" || true)
+
+[ -n "$lan_vpn" ] && echo "✓ LAN→VPN forwarding: enabled" || echo "✗ LAN→VPN forwarding: MISSING (no VPN routing!)"
+[ -z "$lan_wan" ] && echo "✓ LAN→WAN forwarding: blocked (kill switch intact)" || echo "✗ LAN→WAN forwarding: EXISTS - KILL SWITCH BROKEN!"
+
+# ===== DNS HIJACK PREVENTION =====
+echo -e "\n[4/8] DNS Hijack Prevention"
+echo "---"
+dns_tcp=$(uci show firewall | grep -q "Block-External-DNS-TCP" && echo "found")
+dns_udp=$(uci show firewall | grep -q "Block-External-DNS-UDP" && echo "found")
+
+[ "$dns_tcp" = "found" ] && echo "✓ DNS hijack rule (TCP): present" || echo "⚠ DNS hijack rule (TCP): missing (optional but recommended)"
+[ "$dns_udp" = "found" ] && echo "✓ DNS hijack rule (UDP): present" || echo "⚠ DNS hijack rule (UDP): missing (optional but recommended)"
+
+# ===== DHCP CONFIGURATION =====
+echo -e "\n[5/8] DHCP Configuration"
+echo "---"
+dhcp_enabled=$(uci get dhcp.lan.dhcpv4 2>/dev/null)
+dhcp_dns=$(uci get dhcp.lan.dhcp_option 2>/dev/null)
+
+[ "$dhcp_enabled" = "server" ] && echo "✓ DHCP server: enabled" || echo "✗ DHCP server: disabled or missing"
+[ -n "$dhcp_dns" ] && echo "✓ DHCP DNS option: $dhcp_dns" || echo "⚠ DHCP DNS option: not set (clients may use external DNS)"
+
+# ===== VPN TUNNEL =====
+echo -e "\n[6/8] VPN Tunnel Status"
+echo "---"
+if ip link show awg0 2>/dev/null | grep -q UP; then
+    echo "✓ VPN interface (awg0): UP"
+    handshake=$(amneziawg show awg0 2>/dev/null | grep "latest handshake" || wg show awg0 2>/dev/null | grep "latest handshake")
+    [ -n "$handshake" ] && echo "✓ $handshake" || echo "⚠ No recent handshake detected"
+else
+    echo "✗ VPN interface (awg0): DOWN or missing"
+fi
+
+# ===== WATCHDOG =====
+echo -e "\n[7/8] Watchdog/Auto-Recovery"
+echo "---"
+/etc/init.d/awg-watchdog enabled 2>/dev/null && echo "✓ Watchdog auto-start: enabled" || echo "⚠ Watchdog auto-start: disabled"
+pgrep -f "awg-watchdog" > /dev/null && echo "✓ Watchdog process: running" || echo "⚠ Watchdog process: not running"
+
+# ===== IPv6 =====
+echo -e "\n[8/8] IPv6 Status"
+echo "---"
+ipv6_disabled=$(sysctl -n net.ipv6.conf.all.disable_ipv6 2>/dev/null)
+[ "$ipv6_disabled" = "1" ] && echo "✓ IPv6: disabled (kernel)" || echo "⚠ IPv6: enabled at kernel level"
+
+ipv6_forward=$(uci show firewall | grep -q "Block-IPv6-Forward" && echo "found")
+[ "$ipv6_forward" = "found" ] && echo "✓ IPv6 forward blocking: enabled" || echo "⚠ IPv6 forward blocking: not configured"
+
+echo -e "\n=========================================="
+echo "AUDIT COMPLETE"
+echo "=========================================="
+echo "Fix any ✗ items before considering deployment complete."
+echo "⚠ items are optional but recommended."
+```
+
+### 5.3 Live Traffic Tests
+
+**Run from a CLIENT device (not the router) after cutover:**
+
+```bash
+# 1. Verify gateway
+ip route | grep default
+# Expected: default via [PRIVACY_ROUTER_IP]
+
+# 2. Verify DNS server
+cat /etc/resolv.conf
+# Expected: nameserver [YOUR_DNS_IP]
+
+# 3. Verify VPN exit
+curl -s https://ipinfo.io
+# Expected: VPN provider's IP and location
+
+# 4. Verify ad blocking (if AdGuard/Pi-hole deployed)
+nslookup doubleclick.net
+# Expected: 0.0.0.0 or NXDOMAIN
+
+# 5. Verify DNS hijack prevention
+nslookup google.com 8.8.8.8
+# Expected: timeout/failure (external DNS blocked)
+
+# 6. Verify IPv6 blocked
+curl -6 --connect-timeout 5 https://ipv6.icanhazip.com
+# Expected: connection failed
+```
+
+### 5.4 Kill Switch Verification (Critical)
+
+**This is the most important test. Traffic MUST NOT leak when VPN is down.**
+
+```bash
+# ON ROUTER: Bring down VPN
+ip link set awg0 down
+
+# ON CLIENT: Try to reach internet (should fail)
+curl --connect-timeout 10 https://ipinfo.io/ip
+# Expected: connection timeout - NO response
+
+# If you get a response, YOUR IP IS LEAKING - kill switch is broken!
+# Check: uci show firewall | grep forwarding
+# There should be NO lan→wan forwarding
+
+# ON ROUTER: Restore VPN
+ip link set awg0 up
+
+# ON CLIENT: Verify restored
+curl https://ipinfo.io/ip
+# Expected: VPN exit IP
 ```
 
 ---
