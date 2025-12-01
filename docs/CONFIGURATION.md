@@ -184,7 +184,10 @@ config defaults
     option input 'REJECT'
     option output 'ACCEPT'
     option forward 'REJECT'
+    option drop_invalid '1'
 ```
+
+> **Edge hardening:** `drop_invalid` drops malformed packets that don't match any known connection state. Essential when router is the network edge (not behind another firewall).
 
 ### LAN Zone
 
