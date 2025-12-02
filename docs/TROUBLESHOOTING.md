@@ -8,8 +8,9 @@ Common issues and their solutions.
 2. [DNS Issues](#dns-issues)
 3. [Connectivity Issues](#connectivity-issues)
 4. [Kill Switch Issues](#kill-switch-issues)
-5. [Performance Issues](#performance-issues)
-6. [Diagnostic Commands](#diagnostic-commands)
+5. [VPN Bypass Issues](#vpn-bypass-issues)
+6. [Performance Issues](#performance-issues)
+7. [Diagnostic Commands](#diagnostic-commands)
 
 ---
 
@@ -429,6 +430,250 @@ curl ifconfig.me
    # Default input should be REJECT (not DROP)
    # DROP silently fails, REJECT sends response
    uci set firewall.@defaults[0].input='REJECT'
+   ```
+
+---
+
+## VPN Bypass Issues
+
+### Bypass Device Still Going Through VPN
+
+**Symptoms:**
+- Added device to bypass list but still shows VPN IP
+- `curl https://am.i.mullvad.net/connected` returns "You are connected"
+
+**Diagnosis:**
+
+```bash
+# Check policy rules exist
+ip rule show | grep 100
+# Should list your bypass IPs
+
+# Check table 100 has WAN route
+ip route show table 100
+# Should show: default via <WAN_GW> dev eth0
+
+# Check firewall rule exists
+uci show firewall | grep -A5 'Bypass'
+```
+
+**Solutions:**
+
+1. **Policy rule missing:**
+   ```bash
+   # Add rule
+   ip rule add from 192.168.1.X lookup 100 priority 100
+
+   # Make persistent in /etc/rc.local
+   ```
+
+2. **Table 100 empty or wrong:**
+   ```bash
+   # Check if hotplug created table 100
+   ip route show table 100
+
+   # If empty, VPN tunnel may not be fully up
+   # Restart VPN to recreate table 100
+   ACTION=ifup INTERFACE=wan /etc/hotplug.d/iface/99-awg
+   ```
+
+3. **Firewall rule missing:**
+   ```bash
+   # Check for lan→wan ACCEPT for this IP
+   uci show firewall | grep 'src_ip.*192.168.1.X'
+
+   # Add if missing
+   uci add firewall rule
+   uci set firewall.@rule[-1].name='Bypass-DeviceName'
+   uci set firewall.@rule[-1].src='lan'
+   uci set firewall.@rule[-1].src_ip='192.168.1.X'
+   uci set firewall.@rule[-1].dest='wan'
+   uci set firewall.@rule[-1].target='ACCEPT'
+   uci commit firewall
+   /etc/init.d/firewall restart
+   ```
+
+4. **Wrong priority order:**
+   ```bash
+   ip rule show
+
+   # Rules with lower priority number checked first
+   # Bypass rules (priority 100) must come before main (32766)
+   ```
+
+### Bypass Device Has No Internet
+
+**Symptoms:**
+- Device was working, added to bypass, now no internet
+- Can't reach anything from bypass device
+
+**Diagnosis:**
+
+```bash
+# From bypass device (or via SSH proxying)
+ping -c 3 1.1.1.1          # Test raw IP connectivity
+ping -c 3 google.com        # Test DNS
+
+# From router
+traceroute -n 1.1.1.1 -s 192.168.1.X  # Trace from bypass IP
+```
+
+**Solutions:**
+
+1. **WAN gateway changed (DHCP):**
+   ```bash
+   # Check current WAN gateway
+   ip route show dev eth0 | grep default
+
+   # Check table 100 gateway matches
+   ip route show table 100
+
+   # If different, recreate table 100
+   ip route replace default via <NEW_GW> dev eth0 table 100
+   ```
+
+2. **Firewall blocking (no rule):**
+   ```bash
+   # Must have BOTH policy rule AND firewall rule
+   # Check firewall
+   iptables -L FORWARD -n -v | grep 192.168.1.X
+   ```
+
+3. **DNS not working for bypass device:**
+   ```bash
+   # If bypass device uses AdGuard for DNS, AdGuard must also bypass
+   # OR bypass device uses external DNS directly
+
+   # Check AdGuard is in bypass list
+   ip rule show | grep 192.168.1.5
+
+   # If not, add it
+   ip rule add from 192.168.1.5 lookup 100 priority 100
+   ```
+
+### Table 100 Not Created
+
+**Symptoms:**
+- `ip route show table 100` returns nothing
+- Bypass not working even though rules exist
+
+**Diagnosis:**
+
+```bash
+# Check hotplug script exists and is executable
+ls -la /etc/hotplug.d/iface/99-awg
+
+# Check hotplug ran
+logread | grep awg-hotplug
+
+# Check VPN is up
+ip link show awg0
+```
+
+**Solutions:**
+
+1. **VPN not started:**
+   ```bash
+   # Table 100 is created when VPN starts
+   # Start VPN manually
+   ACTION=ifup INTERFACE=wan /etc/hotplug.d/iface/99-awg
+   ```
+
+2. **Hotplug script not executable:**
+   ```bash
+   chmod +x /etc/hotplug.d/iface/99-awg
+   ```
+
+3. **WAN gateway detection failed:**
+   ```bash
+   # Check gateway
+   ip route show dev eth0 | grep default
+   uci get network.wan.gateway
+
+   # If empty, hotplug can't create table 100
+   # Set static gateway or fix DHCP
+   ```
+
+### Bypass Device Loses Internet When VPN Restarts
+
+**Symptoms:**
+- Bypass works until VPN reconnects
+- After VPN restart, bypass stops working
+
+**Solutions:**
+
+1. **Table 100 recreated without WAN route:**
+   ```bash
+   # Check table 100 after VPN restart
+   ip route show table 100
+
+   # If empty or wrong, hotplug may not be updating correctly
+   # Check hotplug script has dynamic gateway detection
+   ```
+
+2. **Policy rules not persistent:**
+   ```bash
+   # Rules in rc.local only run at boot
+   # VPN restart doesn't re-run rc.local
+
+   # Check rc.local uses "add" not "replace"
+   # "add" fails silently if rule exists (safe)
+   # This is correct behavior - rules persist across VPN restarts
+   ```
+
+3. **Watchdog using old gateway:**
+   ```bash
+   # Check watchdog configuration
+   grep -i gateway /etc/awg-watchdog.sh
+
+   # If hardcoded, update to dynamic detection
+   ```
+
+### DNS Not Working for Bypass Devices
+
+**Symptoms:**
+- Bypass device can ping IPs but not domains
+- DNS queries timing out
+
+**Diagnosis:**
+
+```bash
+# From bypass device
+nslookup google.com 192.168.1.5    # Test AdGuard
+nslookup google.com 1.1.1.1         # Test external DNS
+```
+
+**Solutions:**
+
+1. **AdGuard not in bypass list:**
+   ```bash
+   # If bypass device queries AdGuard, and AdGuard routes via VPN,
+   # AdGuard's upstream queries go via VPN.
+   # If VPN is slow/down, DNS fails for bypass devices.
+
+   # FIX: Add AdGuard to bypass
+   ip rule add from 192.168.1.5 lookup 100 priority 100
+
+   # Add to /etc/rc.local for persistence
+   ```
+
+2. **AdGuard upstream unreachable:**
+   ```bash
+   # If AdGuard uses DoH to VPN provider (e.g., Mullvad)
+   # and AdGuard is in bypass, HTTPS to Mullvad still works
+   # (it's encrypted, doesn't need VPN tunnel)
+
+   # Verify AdGuard bypass is working
+   curl -s https://am.i.mullvad.net/connected
+   # From AdGuard container - should show "not connected"
+   ```
+
+3. **Use external DNS for bypass devices:**
+   ```bash
+   # Alternative: Configure bypass devices to use external DNS directly
+   # e.g., 1.1.1.1, 8.8.8.8, or VPN provider's DNS
+
+   # This bypasses AdGuard entirely for bypass devices
    ```
 
 ---

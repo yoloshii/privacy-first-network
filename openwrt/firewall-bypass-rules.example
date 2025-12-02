@@ -1,0 +1,145 @@
+# =============================================================================
+# Firewall Bypass Rules - Add to /etc/config/firewall
+# =============================================================================
+#
+# PURPOSE:
+# By default, the kill switch blocks lan→wan forwarding (all traffic must go
+# through VPN). These rules create exceptions for specific bypass devices.
+#
+# IMPORTANT:
+# Each bypass device needs BOTH:
+#   1. Policy routing rule in /etc/rc.local (ip rule add from X lookup 100)
+#   2. Firewall rule here (allowing lan→wan forwarding)
+#
+# Without the firewall rule, packets are dropped even if policy routing works.
+#
+# INSTALLATION:
+#   1. Add rules to /etc/config/firewall (before any generic reject rules)
+#   2. Run: /etc/init.d/firewall restart
+#   3. Verify with: iptables -L FORWARD -n -v | grep ACCEPT
+#
+# MAC ADDRESS BINDING (Recommended):
+#   For physical devices, bind both IP and MAC to prevent IP spoofing.
+#   For VMs/containers with dynamic MACs, IP-only rules are acceptable.
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# TEMPLATE: Physical Device (with MAC binding)
+# -----------------------------------------------------------------------------
+# Use for physical devices where MAC is static and known
+#
+# config rule
+#     option name 'Bypass-DeviceName'
+#     option src 'lan'
+#     option src_ip '192.168.1.X'
+#     option src_mac 'XX:XX:XX:XX:XX:XX'
+#     option dest 'wan'
+#     option target 'ACCEPT'
+
+# -----------------------------------------------------------------------------
+# TEMPLATE: Virtual Device (IP only)
+# -----------------------------------------------------------------------------
+# Use for VMs/containers where MAC may change on restart
+#
+# config rule
+#     option name 'Bypass-VMName'
+#     option src 'lan'
+#     option src_ip '192.168.1.X'
+#     option dest 'wan'
+#     option target 'ACCEPT'
+
+# =============================================================================
+# EXAMPLE RULES (Customize for your network)
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Infrastructure Devices
+# -----------------------------------------------------------------------------
+
+# Hypervisor host (IP only - internal to Proxmox)
+# config rule
+#     option name 'Bypass-Hypervisor'
+#     option src 'lan'
+#     option src_ip '192.168.1.3'
+#     option dest 'wan'
+#     option target 'ACCEPT'
+
+# DNS Server (IP only - container MAC may change)
+# config rule
+#     option name 'Bypass-DNS-Server'
+#     option src 'lan'
+#     option src_ip '192.168.1.5'
+#     option dest 'wan'
+#     option target 'ACCEPT'
+
+# Proxmox Node 1 (physical - use MAC binding)
+# config rule
+#     option name 'Bypass-PVE-Node1'
+#     option src 'lan'
+#     option src_ip '192.168.1.10'
+#     option src_mac 'XX:XX:XX:XX:XX:XX'
+#     option dest 'wan'
+#     option target 'ACCEPT'
+
+# Proxmox Node 2 (physical - use MAC binding)
+# config rule
+#     option name 'Bypass-PVE-Node2'
+#     option src 'lan'
+#     option src_ip '192.168.1.11'
+#     option src_mac 'XX:XX:XX:XX:XX:XX'
+#     option dest 'wan'
+#     option target 'ACCEPT'
+
+# -----------------------------------------------------------------------------
+# Workstations/Servers
+# -----------------------------------------------------------------------------
+
+# Primary Workstation (physical - use MAC binding)
+# config rule
+#     option name 'Bypass-Workstation'
+#     option src 'lan'
+#     option src_ip '192.168.1.20'
+#     option src_mac 'XX:XX:XX:XX:XX:XX'
+#     option dest 'wan'
+#     option target 'ACCEPT'
+
+# Server LXC (IP only - container)
+# config rule
+#     option name 'Bypass-Server-LXC'
+#     option src 'lan'
+#     option src_ip '192.168.1.100'
+#     option dest 'wan'
+#     option target 'ACCEPT'
+
+# -----------------------------------------------------------------------------
+# User Devices (as needed)
+# -----------------------------------------------------------------------------
+
+# Laptop needing geo-specific access (physical - MAC binding)
+# config rule
+#     option name 'Bypass-Laptop'
+#     option src 'lan'
+#     option src_ip '192.168.1.4'
+#     option src_mac 'XX:XX:XX:XX:XX:XX'
+#     option dest 'wan'
+#     option target 'ACCEPT'
+
+# =============================================================================
+# VERIFICATION
+# =============================================================================
+#
+# After adding rules and restarting firewall:
+#
+#   # Check rules are loaded
+#   iptables -L forwarding_rule -n -v
+#
+#   # From bypass device, test connectivity
+#   curl -s https://am.i.mullvad.net/connected
+#   # Should show: "You are not connected to Mullvad"
+#
+#   # From VPN device, verify VPN still works
+#   curl -s https://am.i.mullvad.net/connected
+#   # Should show Mullvad connection details
+#
+# =============================================================================

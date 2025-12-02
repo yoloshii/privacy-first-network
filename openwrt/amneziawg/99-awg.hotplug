@@ -9,10 +9,17 @@
 # - Automatic reconnection after WAN interruption
 # - Router failover scenarios
 #
+# Features:
+# - Dynamic WAN gateway detection (works with DHCP WANs)
+# - Bypass routing table (table 100) for devices that need direct WAN access
+# - Split routes (0.0.0.0/1 + 128.0.0.0/1) for kill switch compatibility
+# - Profile-based obfuscation support
+#
 # Installation:
 #   1. Copy to /etc/hotplug.d/iface/99-awg
 #   2. chmod +x /etc/hotplug.d/iface/99-awg
-#   3. Edit configuration section inside the script
+#   3. Edit configuration section below (VPN_IP is required)
+#   4. Create bypass policy rules in /etc/rc.local (see rc.local.example)
 #
 # Note: If using the watchdog with failover, the watchdog handles reconnection.
 # This script is for initial tunnel establishment only.
@@ -20,80 +27,136 @@
 # =============================================================================
 
 # Only act on wan interface coming up
-[ "$ACTION" = "ifup" ] && [ "$INTERFACE" = "wan" ] && {
-    sleep 2
+[ "$ACTION" = "ifup" ] || exit 0
+[ "$INTERFACE" = "wan" ] || exit 0
 
-    # Check if AWG is already up
-    if ip link show awg0 2>/dev/null | grep -q UP; then
-        logger -t awg-hotplug "awg0 already up"
-        exit 0
-    fi
+sleep 2
 
-    logger -t awg-hotplug "Starting AmneziaWG tunnel"
+# Check if AWG is already up
+if ip link show awg0 2>/dev/null | grep -q UP; then
+    logger -t awg-hotplug "awg0 already up"
+    exit 0
+fi
 
-    # =========================================================================
-    # CONFIGURATION - Edit these values for your setup
-    # =========================================================================
+logger -t awg-hotplug "WAN up, starting AmneziaWG tunnel"
 
-    CONFIG_FILE="/etc/amneziawg/awg0.conf"
+# =============================================================================
+# CONFIGURATION - Edit these values for your setup
+# =============================================================================
 
-    # Your VPN internal IP (assigned by VPN provider)
-    # Example: 10.64.0.x for Mullvad, 10.x.x.x for IVPN
-    VPN_IP="CHANGE_ME"
+CONFIG_FILE="/etc/amneziawg/awg0.conf"
 
-    # VPN server endpoint IP
-    ENDPOINT_IP="CHANGE_ME"
+# Your VPN internal IP (assigned by VPN provider)
+# Example: 10.64.0.x for Mullvad, 10.x.x.x for IVPN
+# REQUIRED: Get this from your provider's WireGuard config generator
+VPN_IP="CHANGE_ME"
 
-    # Obfuscation profile (AmneziaWG 1.5)
-    # Options: basic, quic, dns, sip, stealth
-    AWG_PROFILE="basic"
+# Obfuscation profile (AmneziaWG 1.5)
+# Options: basic, quic, dns, sip, stealth
+AWG_PROFILE="basic"
 
-    # =========================================================================
+# =============================================================================
+# DYNAMIC GATEWAY DETECTION
+# =============================================================================
+# Gets the WAN gateway from DHCP or UCI config - adapts to your network
 
-    # Source profile library if available
-    PROFILES_LIB="/etc/amneziawg/awg-profiles.sh"
-    RUNTIME_CONFIG="/tmp/awg0-runtime.conf"
-
-    if [ -f "$PROFILES_LIB" ]; then
-        . "$PROFILES_LIB"
-        apply_awg_profile "$CONFIG_FILE" "$RUNTIME_CONFIG" "$AWG_PROFILE"
-        CONFIG_TO_USE="$RUNTIME_CONFIG"
-        logger -t awg-hotplug "Using profile: $AWG_PROFILE"
-    else
-        CONFIG_TO_USE="$CONFIG_FILE"
-    fi
-
-    # Create interface
-    ip link del dev awg0 2>/dev/null
-    ip link add dev awg0 type amneziawg
-    if [ $? -ne 0 ]; then
-        logger -t awg-hotplug "ERROR: Failed to create awg0 interface"
-        exit 1
-    fi
-
-    # Apply config
-    /usr/bin/amneziawg setconf awg0 "$CONFIG_TO_USE"
-    if [ $? -ne 0 ]; then
-        logger -t awg-hotplug "ERROR: Failed to apply config from $CONFIG_FILE"
-        exit 1
-    fi
-
-    # Add address and bring up
-    ip address add "$VPN_IP/32" dev awg0
-    ip link set up dev awg0
-
-    # Get WAN gateway (from DHCP)
-    GATEWAY=$(ip route | grep "default via" | grep -v awg | head -1 | awk '{print $3}')
-
-    # If no gateway via WAN yet, use LAN gateway for testing
-    [ -z "$GATEWAY" ] && GATEWAY="192.168.1.1"
-
-    # Add endpoint route via gateway (prevents routing loop)
-    ip route add $ENDPOINT_IP via $GATEWAY 2>/dev/null
-
-    # Add default route via AWG
-    ip route del default 2>/dev/null
-    ip route add default dev awg0
-
-    logger -t awg-hotplug "AmneziaWG tunnel started (gateway: $GATEWAY)"
+get_wan_gateway() {
+    local gw
+    # Try: current routing table (DHCP-assigned gateway)
+    gw=$(ip route show dev eth0 2>/dev/null | grep default | awk '{print $3}' | head -1)
+    # Fallback: UCI network config
+    [ -z "$gw" ] && gw=$(uci -q get network.wan.gateway)
+    echo "$gw"
 }
+
+WAN_GW=$(get_wan_gateway)
+if [ -z "$WAN_GW" ]; then
+    logger -t awg-hotplug "ERROR: Cannot determine WAN gateway - check network.wan config"
+    exit 1
+fi
+
+logger -t awg-hotplug "Detected WAN gateway: $WAN_GW"
+
+# =============================================================================
+# PROFILE SUPPORT (Optional obfuscation escalation)
+# =============================================================================
+
+PROFILES_LIB="/etc/amneziawg/awg-profiles.sh"
+RUNTIME_CONFIG="/tmp/awg0-runtime.conf"
+
+if [ -f "$PROFILES_LIB" ]; then
+    . "$PROFILES_LIB"
+    apply_awg_profile "$CONFIG_FILE" "$RUNTIME_CONFIG" "$AWG_PROFILE"
+    CONFIG_TO_USE="$RUNTIME_CONFIG"
+    logger -t awg-hotplug "Using obfuscation profile: $AWG_PROFILE"
+else
+    CONFIG_TO_USE="$CONFIG_FILE"
+fi
+
+# =============================================================================
+# TUNNEL CREATION
+# =============================================================================
+
+# Clean up any existing tunnel
+ip link del dev awg0 2>/dev/null
+sleep 1
+
+# Create interface
+if ! ip link add dev awg0 type amneziawg; then
+    logger -t awg-hotplug "ERROR: Failed to create awg0 interface - check kmod-amneziawg installed"
+    exit 1
+fi
+
+# Apply config
+if ! /usr/bin/amneziawg setconf awg0 "$CONFIG_TO_USE"; then
+    logger -t awg-hotplug "ERROR: Failed to apply config from $CONFIG_FILE"
+    ip link del dev awg0
+    exit 1
+fi
+
+# Configure interface
+ip address add "$VPN_IP/32" dev awg0
+ip link set up dev awg0
+
+# =============================================================================
+# ROUTING SETUP - ORDER MATTERS!
+# =============================================================================
+# 1. Route VPN endpoint via WAN (MUST be first - prevents routing loop)
+# 2. Create bypass routing table 100 (for devices that need direct WAN access)
+# 3. Add VPN split routes (captures all traffic except bypass devices)
+
+# Extract endpoint IP from config (handles "Endpoint=IP:PORT" format)
+ENDPOINT=$(grep "^Endpoint=" "$CONFIG_FILE" | cut -d= -f2 | cut -d: -f1)
+
+# Step 1: Route VPN endpoint via WAN gateway
+# CRITICAL: Without this, VPN handshake packets would go into the tunnel (loop)
+if [ -n "$ENDPOINT" ]; then
+    ip route replace ${ENDPOINT}/32 via $WAN_GW dev eth0
+    logger -t awg-hotplug "Endpoint $ENDPOINT routed via WAN ($WAN_GW)"
+fi
+
+# Step 2: Create bypass routing table (table 100)
+# Devices can be routed here via policy rules in /etc/rc.local
+# They'll exit directly via WAN instead of through VPN
+ip route replace default via $WAN_GW dev eth0 table 100
+logger -t awg-hotplug "Bypass table 100 configured via $WAN_GW"
+
+# Step 3: Add VPN split routes
+# These are MORE SPECIFIC than "default" and cover ALL IPv4 space:
+#   0.0.0.0/1   = 0.0.0.0   - 127.255.255.255
+#   128.0.0.0/1 = 128.0.0.0 - 255.255.255.255
+# Result: All traffic goes to awg0 UNLESS policy routing says otherwise
+ip route replace 0.0.0.0/1 dev awg0
+ip route replace 128.0.0.0/1 dev awg0
+
+logger -t awg-hotplug "AmneziaWG tunnel started - VPN_IP=$VPN_IP, profile=$AWG_PROFILE"
+
+# =============================================================================
+# BYPASS ROUTING (configured separately)
+# =============================================================================
+# Policy rules for bypass devices are in /etc/rc.local
+# Example: ip rule add from 192.168.1.100 lookup 100 priority 100
+#
+# Bypass devices also need firewall rules to allow lan→wan forwarding
+# See: /etc/config/firewall bypass rules
+# =============================================================================

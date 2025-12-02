@@ -7,10 +7,11 @@ Complete reference for all configuration files and options.
 1. [AmneziaWG Configuration](#amneziawg-configuration)
 2. [OpenWrt Network Configuration](#openwrt-network-configuration)
 3. [OpenWrt Firewall Configuration](#openwrt-firewall-configuration)
-4. [OpenWrt DHCP Configuration](#openwrt-dhcp-configuration)
-5. [AdGuard Home Configuration](#adguard-home-configuration)
-6. [Watchdog Script Configuration](#watchdog-script-configuration)
-7. [Environment Variables](#environment-variables)
+4. [VPN Bypass Routing](#vpn-bypass-routing)
+5. [OpenWrt DHCP Configuration](#openwrt-dhcp-configuration)
+6. [AdGuard Home Configuration](#adguard-home-configuration)
+7. [Watchdog Script Configuration](#watchdog-script-configuration)
+8. [Environment Variables](#environment-variables)
 
 ---
 
@@ -352,6 +353,192 @@ uci set firewall.@rule[-1].src_ip='!192.168.1.5'
 uci commit firewall
 /etc/init.d/firewall restart
 ```
+
+---
+
+## VPN Bypass Routing
+
+Allows specific devices to bypass the VPN and access the internet directly via WAN.
+
+### Why Bypass is Needed
+
+Some devices need direct WAN access:
+- **Infrastructure hosts** (hypervisor, DNS server) - require uninterrupted updates
+- **Proxmox/ESXi nodes** - cluster communication, backup uploads
+- **Developer workstations** - geo-specific services, corporate VPNs
+- **Specific use cases** - local streaming, banking apps that block VPNs
+
+### Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Traffic Flow                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  LAN Device                                                 │
+│      │                                                      │
+│      ▼                                                      │
+│  ┌──────────────────┐                                       │
+│  │  Policy Routing  │                                       │
+│  │   ip rule show   │                                       │
+│  └────────┬─────────┘                                       │
+│           │                                                 │
+│     ┌─────┴─────┐                                           │
+│     │           │                                           │
+│     ▼           ▼                                           │
+│ "from X.X.X.X"  All others                                  │
+│ lookup 100      lookup main                                 │
+│     │               │                                       │
+│     ▼               ▼                                       │
+│ ┌─────────┐    ┌─────────┐                                  │
+│ │ Table   │    │  Main   │                                  │
+│ │   100   │    │  Table  │                                  │
+│ │         │    │         │                                  │
+│ │ default │    │ 0/1     │                                  │
+│ │ via WAN │    │ 128/1   │                                  │
+│ └────┬────┘    │ via awg0│                                  │
+│      │         └────┬────┘                                  │
+│      ▼              ▼                                       │
+│   ┌─────┐      ┌─────────┐                                  │
+│   │ WAN │      │  awg0   │                                  │
+│   │eth0 │      │  (VPN)  │                                  │
+│   └──┬──┘      └────┬────┘                                  │
+│      │              │                                       │
+│      ▼              ▼                                       │
+│    ISP           Mullvad                                    │
+│  (direct)       (encrypted)                                 │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Components Required
+
+1. **Routing Table 100** - Contains only WAN default route (created by hotplug)
+2. **Policy Rules** - Direct specific IPs to use table 100 (in `/etc/rc.local`)
+3. **Firewall Rules** - Allow lan→wan for bypass devices (in `/etc/config/firewall`)
+
+### Step 1: Verify Table 100 Exists
+
+The 99-awg hotplug script creates table 100 automatically:
+
+```bash
+# Check table 100 has WAN route
+ip route show table 100
+# Expected: default via <WAN_GW> dev eth0
+
+# Check main table has VPN split routes
+ip route show | grep -E "^(0\.0\.0\.0/1|128\.0\.0\.0/1)"
+# Expected:
+# 0.0.0.0/1 dev awg0
+# 128.0.0.0/1 dev awg0
+```
+
+### Step 2: Add Policy Rules
+
+**File:** `/etc/rc.local` (before `exit 0`)
+
+```bash
+# =============================================================================
+# VPN Bypass Policy Rules
+# =============================================================================
+# Syntax: ip rule add from <IP> lookup 100 priority 100
+# Each IP here uses table 100 (WAN only) instead of main table (VPN)
+
+# Infrastructure (RECOMMENDED)
+ip rule add from 192.168.1.3 lookup 100 priority 100   # Hypervisor
+ip rule add from 192.168.1.5 lookup 100 priority 100   # DNS Server
+
+# Proxmox/Virtualization nodes
+ip rule add from 192.168.1.10 lookup 100 priority 100  # Node 1
+ip rule add from 192.168.1.11 lookup 100 priority 100  # Node 2
+
+# Workstations/Servers
+ip rule add from 192.168.1.20 lookup 100 priority 100  # Workstation
+ip rule add from 192.168.1.100 lookup 100 priority 100 # Server LXC
+
+exit 0
+```
+
+Apply immediately:
+```bash
+/etc/rc.local
+```
+
+Verify:
+```bash
+ip rule show | grep "lookup 100"
+```
+
+### Step 3: Add Firewall Rules
+
+**File:** `/etc/config/firewall`
+
+Each bypass device needs a firewall rule allowing lan→wan:
+
+```
+# With MAC binding (recommended for physical devices)
+config rule
+    option name 'Bypass-Workstation'
+    option src 'lan'
+    option src_ip '192.168.1.20'
+    option src_mac 'XX:XX:XX:XX:XX:XX'
+    option dest 'wan'
+    option target 'ACCEPT'
+
+# IP-only (for VMs/containers where MAC may change)
+config rule
+    option name 'Bypass-Server-LXC'
+    option src 'lan'
+    option src_ip '192.168.1.100'
+    option dest 'wan'
+    option target 'ACCEPT'
+```
+
+UCI commands:
+```bash
+# Add rule
+uci add firewall rule
+uci set firewall.@rule[-1].name='Bypass-Workstation'
+uci set firewall.@rule[-1].src='lan'
+uci set firewall.@rule[-1].src_ip='192.168.1.20'
+uci set firewall.@rule[-1].src_mac='XX:XX:XX:XX:XX:XX'
+uci set firewall.@rule[-1].dest='wan'
+uci set firewall.@rule[-1].target='ACCEPT'
+
+uci commit firewall
+/etc/init.d/firewall restart
+```
+
+### Verification
+
+```bash
+# 1. Check policy rules are active
+ip rule show | grep 100
+# Should list your bypass rules
+
+# 2. Check table 100 routing
+ip route show table 100
+# Should show: default via <WAN_GW> dev eth0
+
+# 3. From bypass device, check you're NOT on VPN
+curl -s https://am.i.mullvad.net/connected
+# Should return: "You are not connected to Mullvad"
+
+# 4. From VPN device, verify VPN works
+curl -s https://am.i.mullvad.net/connected
+# Should return Mullvad connection info
+```
+
+### Important Notes
+
+1. **Both rules required**: Policy rule (ip rule) routes traffic to table 100, firewall rule allows the forwarding.
+
+2. **DNS consideration**: Bypass devices should use external DNS (not AdGuard) or AdGuard itself needs bypass.
+
+3. **Kill switch preserved**: The kill switch (no lan→wan forwarding) remains active for all non-bypass devices.
+
+4. **MAC binding optional**: For containers/VMs use IP-only rules. For physical devices, MAC+IP prevents spoofing.
+
+5. **Order matters**: Policy rules are checked in priority order (lower = higher priority).
 
 ---
 

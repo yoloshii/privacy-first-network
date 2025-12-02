@@ -121,15 +121,16 @@ set_current_index() {
 }
 
 # Detect WAN gateway (for endpoint routing)
+# Uses same logic as hotplug for consistency
 get_wan_gateway() {
     local gw
+    # Try: current routing table (non-VPN default route)
     gw=$(ip route | grep "default via" | grep -v awg | head -1 | awk '{print $3}')
-    if [ -n "$gw" ]; then
-        echo "$gw"
-    else
-        # Fallback to common gateway
-        echo "192.168.1.1"
-    fi
+    # Fallback: check WAN interface directly
+    [ -z "$gw" ] && gw=$(ip route show dev eth0 2>/dev/null | grep default | awk '{print $3}' | head -1)
+    # Fallback: UCI network config
+    [ -z "$gw" ] && gw=$(uci -q get network.wan.gateway)
+    echo "$gw"
 }
 
 # Check connectivity through VPN tunnel
@@ -213,11 +214,19 @@ switch_server() {
     ip link set up dev awg0
 
     # 7. Add endpoint route via WAN gateway (prevents routing loop)
-    ip route add "$endpoint" via "$gateway" 2>/dev/null
+    ip route replace "$endpoint" via "$gateway" dev eth0
 
-    # 8. Set default route via VPN
-    ip route del default 2>/dev/null
-    ip route add default dev awg0
+    # 8. Maintain bypass routing table (table 100)
+    # Devices using policy routing with table 100 exit via WAN instead of VPN
+    # Must refresh on each server switch in case WAN gateway changed
+    ip route replace default via "$gateway" dev eth0 table 100
+
+    # 9. Add VPN split routes (more specific than default, covers all IPv4)
+    # 0.0.0.0/1   = 0.0.0.0   - 127.255.255.255
+    # 128.0.0.0/1 = 128.0.0.0 - 255.255.255.255
+    # This ensures kill switch works - all traffic goes to awg0
+    ip route replace 0.0.0.0/1 dev awg0
+    ip route replace 128.0.0.0/1 dev awg0
 
     # Wait for handshake
     sleep 3

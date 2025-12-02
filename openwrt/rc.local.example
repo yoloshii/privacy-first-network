@@ -1,0 +1,106 @@
+#!/bin/sh
+# =============================================================================
+# VPN Bypass Policy Rules - Add to /etc/rc.local
+# =============================================================================
+#
+# PURPOSE:
+# These rules direct specific devices to use routing table 100 (bypass table)
+# instead of the main table. Table 100 has only a WAN default route, so
+# devices using it exit directly to the internet without going through VPN.
+#
+# HOW IT WORKS:
+# 1. 99-awg hotplug creates table 100 with: default via WAN_GW dev eth0
+# 2. Main table gets VPN split routes: 0.0.0.0/1 + 128.0.0.0/1 via awg0
+# 3. These policy rules intercept packets BEFORE main table lookup
+# 4. Matching packets use table 100 → WAN, others use main → VPN
+#
+# INSTALLATION:
+#   1. Edit /etc/rc.local (before the 'exit 0' line)
+#   2. Add your bypass rules (examples below)
+#   3. Run: chmod +x /etc/rc.local && /etc/rc.local
+#   4. Also add matching firewall rules (see firewall-bypass-rules.example)
+#
+# VERIFICATION:
+#   ip rule show | grep 100              # See active rules
+#   ip route show table 100              # See bypass table (should have WAN default)
+#   traceroute -n 1.1.1.1                # Test from bypass device (should NOT see VPN)
+#
+# =============================================================================
+
+# =============================================================================
+# BYPASS RULES - Customize for your network
+# =============================================================================
+# Syntax: ip rule add from <IP> lookup 100 priority 100
+#
+# Priority 100 means these rules are checked before the default (32766).
+# Lower number = higher priority.
+#
+# IMPORTANT: Every device here also needs a firewall rule allowing lan→wan!
+# See: /etc/config/firewall or firewall-bypass-rules.example
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Infrastructure Devices (RECOMMENDED for any setup)
+# -----------------------------------------------------------------------------
+# These typically need direct internet access for updates, monitoring, etc.
+
+# Hypervisor/Host - Replace with your hypervisor IP
+# ip rule add from 192.168.1.3 lookup 100 priority 100
+
+# DNS Server (if using AdGuard, Pi-hole, etc.)
+# Needs WAN access for upstream DNS queries
+# ip rule add from 192.168.1.5 lookup 100 priority 100
+
+# Proxmox/ESXi nodes - Replace with your node IPs
+# ip rule add from 192.168.1.10 lookup 100 priority 100
+# ip rule add from 192.168.1.11 lookup 100 priority 100
+
+# -----------------------------------------------------------------------------
+# Workstations/Servers (Add as needed)
+# -----------------------------------------------------------------------------
+# Devices that need direct WAN for work, development, or specific services
+
+# Primary workstation
+# ip rule add from 192.168.1.20 lookup 100 priority 100
+
+# Server LXC/VM
+# ip rule add from 192.168.1.100 lookup 100 priority 100
+
+# -----------------------------------------------------------------------------
+# User Devices (Optional - most should go through VPN)
+# -----------------------------------------------------------------------------
+# Only add here if device specifically needs to bypass VPN
+# Example: streaming device that needs local geo content
+
+# MacBook/Laptop with geo-specific needs
+# ip rule add from 192.168.1.4 lookup 100 priority 100
+
+# -----------------------------------------------------------------------------
+# Future/Reserved IPs
+# -----------------------------------------------------------------------------
+# Add rules for devices you plan to deploy
+
+# Future gateway/firewall VM
+# ip rule add from 192.168.1.200 lookup 100 priority 100
+
+# =============================================================================
+# VERIFICATION COMMANDS
+# =============================================================================
+# Run after adding rules to verify they're active:
+#
+#   ip rule show | grep "lookup 100"
+#   # Should list all your bypass rules
+#
+#   ip route show table 100
+#   # Should show: default via <WAN_GW> dev eth0
+#
+# From a bypass device, test that traffic goes direct:
+#   curl -s https://am.i.mullvad.net/connected
+#   # Should return "You are not connected to Mullvad"
+#
+# From a VPN device, test that traffic goes through VPN:
+#   curl -s https://am.i.mullvad.net/connected
+#   # Should return connection details
+# =============================================================================
+
+exit 0

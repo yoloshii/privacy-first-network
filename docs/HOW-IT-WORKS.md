@@ -7,10 +7,11 @@ This document explains the technical implementation details for network engineer
 1. [Network Layer Model](#network-layer-model)
 2. [Routing Architecture](#routing-architecture)
 3. [Kill Switch Implementation](#kill-switch-implementation)
-4. [VPN Tunnel Mechanics](#vpn-tunnel-mechanics)
-5. [DNS Resolution Chain](#dns-resolution-chain)
-6. [Watchdog Recovery System](#watchdog-recovery-system)
-7. [AmneziaWG Obfuscation](#amneziawg-obfuscation)
+4. [VPN Bypass Routing](#vpn-bypass-routing)
+5. [VPN Tunnel Mechanics](#vpn-tunnel-mechanics)
+6. [DNS Resolution Chain](#dns-resolution-chain)
+7. [Watchdog Recovery System](#watchdog-recovery-system)
+8. [AmneziaWG Obfuscation](#amneziawg-obfuscation)
 
 ---
 
@@ -244,6 +245,151 @@ Device (192.168.1.100) → OpenWrt (192.168.1.1)
 Note: Traffic TO the router (input) is separate from
       traffic THROUGH the router (forward).
       Kill switch only affects forwarding.
+```
+
+---
+
+## VPN Bypass Routing
+
+Some devices need direct WAN access while preserving the kill switch for everyone else.
+
+### Why Table 100?
+
+The main routing table contains VPN split routes (`0.0.0.0/1` and `128.0.0.0/1` via `awg0`). These are more specific than a default route, so adding a `default via WAN` to the main table won't work - split routes always win.
+
+**Solution:** Create a separate routing table (100) with ONLY a WAN default route, then use policy routing to direct specific IPs to table 100.
+
+### Split Routes vs Default Route
+
+```
+Main Table (after VPN up):
+  0.0.0.0/1 dev awg0      ← Matches 0.0.0.0 - 127.255.255.255 (more specific)
+  128.0.0.0/1 dev awg0    ← Matches 128.0.0.0 - 255.255.255.255 (more specific)
+  192.168.1.0/24 dev br-lan  ← Local network
+
+Table 100 (bypass):
+  default via 192.168.1.254 dev eth0  ← WAN gateway (no split routes!)
+
+Why split routes?
+- Standard "default" route: 0.0.0.0/0 (prefix length 0)
+- Split routes: /1 prefix (more specific than /0)
+- More specific always wins in routing
+- Result: Adding "default via WAN" to main table has NO effect (split routes still win)
+```
+
+### Policy Routing Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   POLICY ROUTING DECISION                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Packet from LAN device                                         │
+│      │                                                          │
+│      ▼                                                          │
+│  ┌───────────────────────────┐                                  │
+│  │     ip rule show          │                                  │
+│  │ (checked in priority order)│                                  │
+│  └─────────────┬─────────────┘                                  │
+│                │                                                │
+│     priority   │                                                │
+│        100     │                                                │
+│        ↓       │                                                │
+│  ┌─────────────▼─────────────┐                                  │
+│  │ from 192.168.1.3?         │──YES──→ lookup table 100        │
+│  │ from 192.168.1.5?         │         (WAN default)           │
+│  │ from 192.168.1.10?        │              │                   │
+│  │ ...bypass IPs             │              ▼                   │
+│  └─────────────┬─────────────┘         Direct to ISP            │
+│                │NO                                              │
+│                ▼                                                │
+│     priority 32766                                              │
+│        ↓                                                        │
+│  ┌─────────────────────────┐                                    │
+│  │ from all lookup main     │                                    │
+│  │ (default rule)           │                                    │
+│  └─────────────┬────────────┘                                   │
+│                │                                                │
+│                ▼                                                │
+│        lookup main table                                        │
+│     (has VPN split routes)                                      │
+│                │                                                │
+│                ▼                                                │
+│         Route via awg0                                          │
+│          (through VPN)                                          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Complete Bypass Components
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│               THREE COMPONENTS REQUIRED                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1. ROUTING TABLE 100 (created by 99-awg hotplug)              │
+│     ip route show table 100                                     │
+│     → default via <WAN_GW> dev eth0                            │
+│                                                                 │
+│  2. POLICY RULES (set in /etc/rc.local)                        │
+│     ip rule show | grep 100                                     │
+│     → from 192.168.1.3 lookup 100 priority 100                 │
+│     → from 192.168.1.5 lookup 100 priority 100                 │
+│     → ...                                                       │
+│                                                                 │
+│  3. FIREWALL RULES (in /etc/config/firewall)                   │
+│     config rule 'Bypass-DeviceName'                            │
+│         option src 'lan'                                        │
+│         option src_ip '192.168.1.X'                            │
+│         option dest 'wan'                                       │
+│         option target 'ACCEPT'                                  │
+│                                                                 │
+│  Missing any component = bypass fails:                          │
+│  - No table 100 = policy rule has nothing to use               │
+│  - No policy rule = traffic goes to main table (VPN)           │
+│  - No firewall rule = lan→wan forwarding rejected              │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Kill Switch Preserved
+
+```
+For BYPASS devices:
+  Policy routing → table 100 → WAN default → eth0 → ISP
+  Firewall: explicit lan→wan ACCEPT rule
+
+For EVERYONE ELSE:
+  Policy routing → main table → split routes → awg0 → VPN
+  Firewall: lan→wan still REJECT (kill switch active)
+
+VPN goes down:
+  Bypass devices: Still work (WAN route in table 100)
+  Everyone else: NO route (split routes gone) → traffic dropped
+
+Key insight: Bypass devices exit via a completely separate routing path.
+The kill switch (no lan→wan forwarding) is still active in firewall.
+Bypass devices have explicit firewall exceptions.
+```
+
+### DNS Considerations for Bypass Devices
+
+```
+Bypass devices exit via WAN, not VPN.
+If they use AdGuard (192.168.1.5) for DNS:
+
+Option 1: AdGuard also bypasses (RECOMMENDED)
+  → AdGuard in bypass list
+  → DNS queries go direct to upstream (Mullvad DoH via HTTPS)
+  → Works even if VPN is down
+
+Option 2: AdGuard goes through VPN
+  → DNS queries go via VPN
+  → If VPN down, AdGuard can't resolve → bypass devices lose DNS
+  → NOT recommended
+
+Always add your DNS server to bypass list!
 ```
 
 ---

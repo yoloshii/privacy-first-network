@@ -117,7 +117,34 @@ Ask the user or probe their system to determine:
 □ Number and types of devices on network
 □ Any existing VLANs or network segmentation
 □ Static IP assignments that must be preserved
+□ DHCP reservations to migrate (see below)
 ```
+
+**DHCP Reservations (User Decision):**
+
+Ask the user which devices should keep their current IP addresses. Migrating DHCP reservations avoids reconfiguring:
+- Smart home devices and their apps
+- Network printers and scanner configs
+- Media servers, NAS shares, and bookmarks
+- Port forwarding rules and firewall exceptions
+- Any scripts or configs with hardcoded IPs
+
+**How to collect:**
+```bash
+# On existing router (OpenWrt)
+cat /tmp/dhcp.leases
+uci show dhcp | grep host
+
+# On existing router (consumer routers)
+# Check admin panel → DHCP → Reserved/Static leases
+```
+
+**Migration approach:**
+1. Export current reservations (MAC → IP mappings)
+2. After privacy router deployment, recreate in new DHCP config
+3. Devices get same IPs after lease renewal - zero reconfiguration needed
+
+This is optional but recommended for networks with 5+ devices or any smart home integration.
 
 ### 1.2 Deployment Method
 
@@ -223,6 +250,9 @@ Which do you prefer?"
 
 ```
 □ Devices that need VPN bypass (gaming consoles, work devices)
+  - Collect: IP addresses, MAC addresses (optional but recommended for physical devices)
+  - Infrastructure devices often need bypass: hypervisor, DNS server, backup servers
+  - See Phase 4.3.2 for bypass configuration
 □ Services that need port forwarding
 □ Bandwidth requirements
 □ IPv6 requirements (recommend: disable)
@@ -391,7 +421,10 @@ Use these example configs, substituting user-specific values:
 | VPN tunnel (Mullvad) | `openwrt/amneziawg/mullvad-awg0.conf.example` | ✓ | Mullvad-optimized |
 | **Watchdog (failover)** | `openwrt/amneziawg/awg-watchdog.sh` | ✓ | Multi-server failover + failback |
 | Server list (failover) | `openwrt/amneziawg/servers.conf.example` | ✓ | For failover watchdog |
-| Hotplug script | `openwrt/amneziawg/99-awg.hotplug` | ✓ | WAN-up auto-start |
+| Hotplug script | `openwrt/amneziawg/99-awg.hotplug` | ✓ | WAN-up auto-start + table 100 |
+| **VPN Bypass (Optional)** | | | |
+| Bypass policy rules | `openwrt/rc.local.example` | ✓ | Table 100 policy routing |
+| Bypass firewall rules | `openwrt/firewall-bypass-rules.example` | ✓ | LAN→WAN exceptions |
 | **Init script (OpenWrt)** | `openwrt/amneziawg/awg-watchdog.init` | ✓ | Boot persistence (procd) |
 | **Systemd service (watchdog)** | `scripts/awg-watchdog.service` | ✓ | Linux systemd (non-OpenWrt) |
 | Cron jobs | `openwrt/crontab.example` | ✓ | Scheduled tasks template |
@@ -545,6 +578,73 @@ uci commit firewall
 □ Test: nslookup google.com 8.8.8.8 from client → should fail/timeout
 □ Test: nslookup google.com (via local DNS) → should work
 ```
+
+### 4.3.2 VPN Bypass Configuration (Optional)
+
+For devices that need direct WAN access (bypassing VPN), configure policy routing and firewall exceptions. Common bypass candidates: hypervisor hosts, DNS servers, gaming consoles, work devices.
+
+**Architecture:**
+```
+Normal devices:    LAN → awg0 (VPN) → Internet
+Bypass devices:    LAN → table 100 → WAN → Internet (direct)
+```
+
+**Step 1: Verify Table 100 exists (created by hotplug script):**
+```bash
+ip route show table 100
+# Expected: default via WAN_GATEWAY_IP dev eth0
+# If empty, hotplug script hasn't run yet or failed
+```
+
+**Step 2: Add policy routing rules (in /etc/rc.local):**
+```bash
+# Each bypass device needs a rule to use table 100
+# Syntax: ip rule add from <IP> lookup 100 priority 100
+
+# Example entries (add before 'exit 0'):
+ip rule add from 192.168.1.3 lookup 100 priority 100   # Hypervisor
+ip rule add from 192.168.1.5 lookup 100 priority 100   # DNS Server
+
+# See openwrt/rc.local.example for complete template
+```
+
+**Step 3: Add firewall rules (in /etc/config/firewall):**
+```bash
+# Kill switch blocks lan→wan by default
+# Bypass devices need explicit ACCEPT rules
+
+# Example rule:
+config rule
+    option name 'Bypass-Hypervisor'
+    option src 'lan'
+    option src_ip '192.168.1.3'
+    option dest 'wan'
+    option target 'ACCEPT'
+
+# See openwrt/firewall-bypass-rules.example for MAC binding templates
+```
+
+**Step 4: Apply changes:**
+```bash
+# Apply policy rules
+sh /etc/rc.local
+
+# Apply firewall rules
+/etc/init.d/firewall restart
+```
+
+**Verification:**
+```
+□ Table 100 has default route via WAN gateway
+□ Policy rules visible: ip rule show | grep "lookup 100"
+□ Firewall rules applied: iptables -L forwarding_rule -n | grep bypass_ip
+□ From bypass device: curl -s https://am.i.mullvad.net/connected
+  → Should show "You are not connected to Mullvad"
+□ From VPN device: Same test → Should show Mullvad connection
+□ Kill switch still works for non-bypass devices
+```
+
+**Important:** DNS servers that need bypass (e.g., AdGuard with DoH to Mullvad) must be in the bypass list, otherwise upstream queries fail.
 
 ### 4.4 DNS
 
