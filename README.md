@@ -91,7 +91,7 @@ This privacy router sits between your modem and your existing router. **Every de
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-**Every device is protected:** Phones, tablets, laptops, smart TVs, gaming consoles, IoT devices, guests - everything.
+**Every device is protected:** Phones, tablets, laptops, smart TVs, gaming consoles, IoT devices, guests - everything. Individual devices can be [bypassed](docs/CONFIGURATION.md#vpn-bypass-routing) for direct WAN access when needed.
 
 ---
 
