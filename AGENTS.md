@@ -2,7 +2,7 @@
 
 You are assisting a user in deploying a network-wide VPN privacy router. This document provides your operational framework.
 
-> **Development Note:** This stack was developed, tested, and deployed using **Claude Opus 4.5** via Claude Code with **Mullvad VPN**. The methodology below reflects lessons learned during that implementation.
+> **Development Note:** This stack was developed, tested, and deployed using **Claude Opus 4.6** via Claude Code with **Mullvad VPN**. The methodology below reflects lessons learned during that implementation, including 14 production issues resolved through iterative debugging.
 
 ## Your Mission
 
@@ -592,7 +592,9 @@ Bypass devices:    LAN → table 100 → WAN → Internet (direct)
 **Step 1: Verify Table 100 exists (created by hotplug script):**
 ```bash
 ip route show table 100
-# Expected: default via WAN_GATEWAY_IP dev eth0
+# Expected:
+#   default via WAN_GATEWAY_IP dev eth0
+#   LAN_SUBNET dev br-lan                ← bypass devices need LAN access
 # If empty, hotplug script hasn't run yet or failed
 ```
 
@@ -620,6 +622,7 @@ config rule
     option src_ip '192.168.1.3'
     option dest 'wan'
     option target 'ACCEPT'
+    option proto 'all'          # IMPORTANT: without this, ICMP (ping) is blocked
 
 # See openwrt/firewall-bypass-rules.example for MAC binding templates
 ```
@@ -658,13 +661,31 @@ upstream_dns:
   - https://dns.mullvad.net/dns-query  # Without ad blocking
 ```
 
+**Bootstrap DNS (CRITICAL):** AdGuard needs to resolve DoH hostnames (e.g., `adblock.dns.mullvad.net`). The `bootstrap_dns` setting controls which DNS is used for this. **Using public DNS (1.1.1.1, 8.8.8.8) here causes a DNS leak** — those queries bypass the VPN, exposing your DoH provider to your ISP. Use your VPN provider's DNS:
+```yaml
+bootstrap_dns:
+  # Mullvad: 194.242.2.2, 194.242.2.3
+  # IVPN: 198.54.131.10
+  # Proton: 194.126.177.5
+  - 194.242.2.2  # Replace with your VPN provider's DNS
+```
+
+**AAAA records:** Disable IPv6 DNS responses to prevent streaming breakage on devices that try IPv6 but have no IPv6 VPN route:
+```yaml
+dns:
+  aaaa_disabled: true
+```
+
 Verification (with AdGuard):
 ```
 □ AdGuard Home installed and running
 □ Upstream DNS set to DoH (VPN provider)
+□ Bootstrap DNS set to VPN provider DNS (NOT 1.1.1.1 or 8.8.8.8)
+□ AAAA disabled (prevents Smart TV/streaming breakage)
 □ DHCP pushing AdGuard IP to clients
 □ DNS resolution working through AdGuard
 □ Ad blocking verified (nslookup doubleclick.net → 0.0.0.0)
+□ No DNS leak (test at mullvad.net/check or dnsleaktest.com)
 ```
 
 **If user chose NO AdGuard (basic setup):**
@@ -697,17 +718,20 @@ Verification (without AdGuard):
 **For OpenWrt (procd):**
 ```
 □ Copy awg-watchdog.sh to /etc/awg-watchdog.sh
-□ Configure VPN_IP (your provider-assigned internal IP)
-□ Create server list: /etc/amneziawg/servers.conf
+□ Configure VPN_IP — MUST match Address from provider's WireGuard config
+  ⚠ VPN_IP mismatch is the #1 cause of watchdog crash-loops
+□ Create server list: /etc/amneziawg/servers.conf (3-5 servers)
 □ Copy awg-watchdog.init to /etc/init.d/awg-watchdog
 □ Enable: /etc/init.d/awg-watchdog enable && start
+□ After ANY script edits: /etc/init.d/awg-watchdog restart
+  (procd runs the daemon in memory — disk changes need a restart)
 ```
 
 **For standard Linux (systemd):**
 ```
 □ Copy awg-watchdog.sh to /etc/awg-watchdog.sh
-□ Configure VPN_IP (your provider-assigned internal IP)
-□ Create server list: /etc/amneziawg/servers.conf
+□ Configure VPN_IP — MUST match Address from provider's WireGuard config
+□ Create server list: /etc/amneziawg/servers.conf (3-5 servers)
 □ Copy scripts/awg-watchdog.service to /etc/systemd/system/
 □ systemctl daemon-reload
 □ systemctl enable --now awg-watchdog
@@ -741,10 +765,12 @@ Guidelines:
 - See `servers.conf.example` for full documentation and examples
 
 **Failover behavior:**
-- Monitors connectivity by pinging through tunnel
-- After 3 consecutive failures → switches to next server
-- Cycles through all servers until one works
-- After 10 successful checks → attempts failback to primary
+- Monitors connectivity by pinging through tunnel (2/3 probes must pass)
+- After 3 consecutive failures → restarts tunnel on **same server** first
+- If same-server restart fails → cycles to **next server** in list
+- After all servers exhausted → backs off 5 minutes before retrying
+- After 10 successful checks on backup → attempts failback to primary
+- Forces handshake (ping through tunnel) after every restart
 - Kill switch maintained during failover (no traffic leaks)
 
 **Other reliability components:**
@@ -803,7 +829,7 @@ echo -n "DHCP DNS option: "; uci get dhcp.lan.dhcp_option
 uci show firewall | grep -q "Block-External-DNS" && echo "DNS hijack prevention: ✓ Present" || echo "DNS hijack prevention: ✗ MISSING"
 
 # 5. VPN tunnel status
-amneziawg show awg0 | grep -E "interface|latest handshake" || wg show awg0 | grep -E "interface|latest handshake"
+awg show awg0 | grep -E "interface|latest handshake" || wg show awg0 | grep -E "interface|latest handshake"
 
 # 6. Watchdog status
 /etc/init.d/awg-watchdog enabled && echo "Watchdog auto-start: ✓ Enabled" || echo "Watchdog auto-start: ✗ Disabled"
@@ -976,7 +1002,7 @@ echo -e "\n[6/8] VPN Tunnel Status"
 echo "---"
 if ip link show awg0 2>/dev/null | grep -q UP; then
     echo "✓ VPN interface (awg0): UP"
-    handshake=$(amneziawg show awg0 2>/dev/null | grep "latest handshake" || wg show awg0 2>/dev/null | grep "latest handshake")
+    handshake=$(awg show awg0 2>/dev/null | grep "latest handshake" || wg show awg0 2>/dev/null | grep "latest handshake")
     [ -n "$handshake" ] && echo "✓ $handshake" || echo "⚠ No recent handshake detected"
 else
     echo "✗ VPN interface (awg0): DOWN or missing"
@@ -1428,6 +1454,105 @@ opkg install kmod-usb-net-cdc-ether # Generic CDC
 ip link show
 ```
 
+### 13. Script Corruption (Shebang & Conditionals)
+
+**The Problem:** When scripts are edited through certain editors, file transfers, or copy-paste operations, shell metacharacters get escaped. Common corruptions:
+- `#!/bin/sh` becomes `#\!/bin/sh` (backslash-bang shebang)
+- `if ! command` becomes `if \! command` (escaped conditionals)
+
+**Detection:**
+```bash
+# Check shebang (should show #!/bin/sh, NOT #\!/bin/sh)
+head -1 /etc/awg-watchdog.sh /etc/hotplug.d/iface/99-awg
+
+# Check for escaped bangs (should return NOTHING)
+grep '\\!' /etc/awg-watchdog.sh /etc/hotplug.d/iface/99-awg
+```
+
+**Fix:**
+```bash
+sed -i '1s|^#\\!|#!|' /etc/awg-watchdog.sh /etc/hotplug.d/iface/99-awg
+sed -i 's/\\!/!/g' /etc/awg-watchdog.sh /etc/hotplug.d/iface/99-awg
+/etc/init.d/awg-watchdog restart  # Daemon must be restarted!
+```
+
+**Agent Strategy:** After deploying any script, always verify the shebang and check for escaped characters before moving on.
+
+### 14. Editing Watchdog Script But Nothing Changes
+
+**The Problem:** procd runs the watchdog as a daemon in memory. Editing the script file on disk does NOT affect the running process.
+
+**Agent Strategy:**
+```bash
+# After ANY edit to /etc/awg-watchdog.sh:
+/etc/init.d/awg-watchdog restart
+
+# Verify new process is running
+ps | grep awg-watchdog | grep -v grep
+```
+
+This applies to ALL procd-managed services on OpenWrt.
+
+### 15. AdGuard Fails After Boot (VM/Container Deployments)
+
+**The Problem:** If AdGuard runs in a separate VM or container and uses DHCP, it may request an IP before the router's DHCP server is ready. AdGuard's interface stays DOWN, DNS fails for the entire network.
+
+**Detection:** Container shows running but `ip addr show eth0` has no IP.
+
+**Agent Strategy:**
+```bash
+# Best fix: Convert AdGuard to static IP (eliminates DHCP dependency)
+cat > /etc/systemd/network/eth0.network << 'EOF'
+[Match]
+Name=eth0
+
+[Network]
+Address=192.168.1.5/24
+Gateway=192.168.1.1
+DNS=127.0.0.1
+EOF
+systemctl restart systemd-networkd
+
+# Alternative: Add startup delay on hypervisor
+# Proxmox: pct set <CTID> -startup order=2,up=30
+```
+
+### 16. Slow Single-Stream VPN Speed (High-Latency Links)
+
+**The Problem:** Default TCP buffer sizes (208KB) create a bottleneck on high-latency VPN links. Result: 5-30 Mbps despite fast WAN.
+
+**Detection:** VPN RTT >100ms AND single-stream speed well below WAN capacity.
+
+**Agent Strategy:**
+```bash
+# Check VPN latency
+ping -c 5 -I awg0 1.1.1.1
+
+# If RTT > 100ms, tune TCP buffers:
+cat >> /etc/sysctl.conf << 'EOF'
+net.core.rmem_max = 16777216
+net.core.wmem_max = 16777216
+net.ipv4.tcp_rmem = 4096 131072 16777216
+net.ipv4.tcp_wmem = 4096 16384 16777216
+EOF
+sysctl -p
+```
+
+**Math:** BDP = Bandwidth × RTT. Example: 100 Mbps × 184ms = 2.3 MB needed in flight. Default 208KB buffer → severe bottleneck.
+
+### 17. AmneziaWG Command Name Varies
+
+**The Problem:** The command is `awg` when installed from OpenWrt packages (awg-openwrt) but `amneziawg` when built from source.
+
+**Agent Strategy:**
+```bash
+# Check which is available
+which awg amneziawg 2>/dev/null
+
+# The watchdog and hotplug scripts auto-detect this.
+# When running manual commands, use whichever is installed.
+```
+
 ---
 
 ## Error Recovery
@@ -1502,7 +1627,7 @@ When helping users:
 # CORRECT ORDER:
 # 1. Create interface
 ip link add dev awg0 type amneziawg
-amneziawg setconf awg0 /etc/amneziawg/awg0.conf
+awg setconf awg0 /etc/amneziawg/awg0.conf  # or: amneziawg setconf
 ip address add 10.x.x.x/32 dev awg0
 ip link set up dev awg0
 
@@ -1512,11 +1637,15 @@ ip route add VPN_SERVER_IP via WAN_GATEWAY
 # 3. THEN set default route via VPN
 ip route del default 2>/dev/null
 ip route add default dev awg0
+
+# 4. Force handshake (WireGuard won't handshake until traffic is sent)
+ping -c 1 -W 10 -I awg0 1.1.1.1 >/dev/null 2>&1
 ```
 
 **Why this order:**
 - Endpoint route ensures VPN handshake packets reach the server via WAN
 - If default route via VPN comes first, handshake packets would go into VPN tunnel (which isn't up yet) → loop
+- Forced ping triggers the handshake — without it, the tunnel appears "up" but has no active session
 
 ---
 

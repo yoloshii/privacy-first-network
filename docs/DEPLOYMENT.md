@@ -216,27 +216,50 @@ Set the profile in your scripts (watchdog and hotplug):
 AWG_PROFILE="quic"  # or dns, sip, stealth
 ```
 
-### A7. Install Startup Scripts
+### A7. Install Startup Scripts and Server Failover
 
-Copy from `scripts/` directory:
+**Create server failover config:**
+
+```bash
+# Create server list for watchdog failover
+cat > /etc/amneziawg/servers.conf << 'EOF'
+# Format: NAME  ENDPOINT_IP  PORT  PUBLIC_KEY
+# Use "-" for public key if all servers share the same key (same provider/cluster)
+# Get server IPs from your VPN provider's server list
+
+# Example (Mullvad Los Angeles cluster):
+# us-lax-wg-001   198.51.100.10   51820   -
+# us-lax-wg-002   198.51.100.12   51820   -
+# us-lax-wg-003   198.51.100.14   51820   -
+
+# Add your servers here:
+EOF
+
+# Edit with your provider's servers:
+vi /etc/amneziawg/servers.conf
+```
+
+> **Tip:** Use 3-5 servers from the same region for failover. The watchdog tries the same server first on failure, then cycles through the list.
+
+**Copy startup scripts:**
 
 ```bash
 # Copy watchdog script
-cp scripts/awg-watchdog.sh /etc/awg-watchdog.sh
+cp openwrt/amneziawg/awg-watchdog.sh /etc/awg-watchdog.sh
 chmod +x /etc/awg-watchdog.sh
 
 # Edit watchdog with your values (REQUIRED):
 vi /etc/awg-watchdog.sh
-# Set: VPN_IP, ENDPOINT_IP (find these in your VPN provider config)
+# Set: VPN_IP (must match Address in your provider's WireGuard config)
 
 # Copy hotplug script (auto-starts VPN on WAN up)
 mkdir -p /etc/hotplug.d/iface
-cp scripts/99-awg-hotplug /etc/hotplug.d/iface/99-awg
+cp openwrt/amneziawg/99-awg.hotplug /etc/hotplug.d/iface/99-awg
 chmod +x /etc/hotplug.d/iface/99-awg
 
-# Edit hotplug script with same values:
+# Edit hotplug script with same VPN_IP:
 vi /etc/hotplug.d/iface/99-awg
-# Set: VPN_IP, ENDPOINT_IP
+# Set: VPN_IP
 ```
 
 **For OpenWrt (init.d):**
@@ -278,9 +301,10 @@ sudo systemctl status adguardhome
 **Configuration values you need:**
 | Variable | Description | Where to Find |
 |----------|-------------|---------------|
-| `VPN_IP` | Your VPN internal IP | Provider config (e.g., `10.64.x.x/32` for Mullvad) |
-| `ENDPOINT_IP` | VPN server IP address | Resolve provider hostname or server list |
-| `WAN_GATEWAY` | Usually "auto" (auto-detected) | `auto` or your modem's IP (e.g., `192.168.1.1`) |
+| `VPN_IP` | Your VPN internal IP (e.g., `10.64.x.x`) | Provider's WireGuard config (`Address` field) |
+| `servers.conf` | Server endpoints for failover | Provider's server list page |
+
+> **IMPORTANT:** `VPN_IP` must exactly match the `Address` from your provider's WireGuard config. A mismatch is the #1 cause of watchdog crash-loops — the tunnel starts but connectivity checks fail, triggering infinite restarts. The WAN gateway is auto-detected.
 
 ### A8. Test VPN Manually
 
@@ -288,8 +312,8 @@ sudo systemctl status adguardhome
 # Create interface
 ip link add dev awg0 type amneziawg
 
-# Apply config
-amneziawg setconf awg0 /etc/amneziawg/awg0.conf
+# Apply config (command is "awg" on OpenWrt, "amneziawg" if built from source)
+awg setconf awg0 /etc/amneziawg/awg0.conf
 
 # Add address (use your VPN internal IP)
 ip address add 10.x.x.x/32 dev awg0
@@ -394,6 +418,23 @@ uci commit uhttpd
 /etc/init.d/uhttpd restart
 ```
 
+### A12b. TCP Buffer Tuning (High-Latency Links)
+
+If your VPN server is geographically distant (>100ms latency), tune TCP buffers to avoid single-stream speed bottlenecks:
+
+```bash
+cat >> /etc/sysctl.conf << 'EOF'
+# TCP buffer tuning for high-latency VPN links
+net.core.rmem_max = 16777216
+net.core.wmem_max = 16777216
+net.ipv4.tcp_rmem = 4096 131072 16777216
+net.ipv4.tcp_wmem = 4096 16384 16777216
+EOF
+sysctl -p
+```
+
+Skip this if your VPN server is nearby (<50ms) or WAN is <50 Mbps. See [CONFIGURATION.md](CONFIGURATION.md#tcp-buffer-tuning-high-latency-links) for details.
+
 ### A13. Final Cutover
 
 1. **Set existing router to AP mode**
@@ -453,6 +494,29 @@ curl -s -S -L https://raw.githubusercontent.com/AdguardTeam/AdGuardHome/master/s
 ```
 
 Ensure the AdGuard VM/container is on the LAN bridge so it can serve DNS to clients.
+
+**Boot sequencing (important):** AdGuard must start AFTER OpenWrt's DHCP server is ready. Without this, AdGuard may fail to get an IP on boot, silently breaking DNS for the entire network.
+
+**Recommended: Use static IP for AdGuard** (eliminates DHCP race condition):
+
+```bash
+# Inside the AdGuard VM/container
+cat > /etc/systemd/network/eth0.network << 'EOF'
+[Match]
+Name=eth0
+
+[Network]
+Address=192.168.1.5/24
+Gateway=192.168.1.1
+DNS=127.0.0.1
+EOF
+
+systemctl restart systemd-networkd
+```
+
+**If using DHCP:** Add a startup delay so OpenWrt's dnsmasq is ready first:
+- Proxmox: `pct set <CTID> -startup order=2,up=30` (container starts 30s after OpenWrt)
+- Other hypervisors: Configure equivalent boot ordering with delay
 
 ### B3. Continue Setup
 
@@ -552,15 +616,20 @@ See **[docker/README.md](../docker/README.md)** for:
 
 ## Post-Deployment Checklist
 
-- [ ] VPN connected (check exit IP)
+- [ ] VPN connected (check exit IP matches VPN provider)
 - [ ] Kill switch working (no internet when VPN down)
 - [ ] DNS resolving through AdGuard
-- [ ] Ads blocked (test doubleclick.net)
-- [ ] IPv6 disabled
+- [ ] Ads blocked (`nslookup doubleclick.net` returns 0.0.0.0)
+- [ ] No DNS leak (`bootstrap_dns` uses VPN provider DNS, not public)
+- [ ] IPv6 disabled (no AAAA records returned)
 - [ ] SSH restricted to LAN
-- [ ] All services start on boot
-- [ ] Watchdog running
+- [ ] All services start on boot (power cycle and verify)
+- [ ] Watchdog running and servers.conf populated
+- [ ] VPN_IP in scripts matches provider config Address field
+- [ ] Scripts not corrupted (`head -1` shows `#!/bin/sh`, no `\!`)
+- [ ] Bypass rules use `option proto 'all'` (if using bypass)
 - [ ] Existing router in AP mode
+- [ ] TCP buffers tuned (if VPN latency >100ms)
 
 ## Next Steps
 

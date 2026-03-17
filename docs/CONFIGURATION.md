@@ -22,7 +22,7 @@ Complete reference for all configuration files and options.
 ```ini
 [Interface]
 # Your WireGuard private key (base64)
-# Generate with: amneziawg genkey
+# Generate with: awg genkey (or: amneziawg genkey)
 PrivateKey = YOUR_PRIVATE_KEY
 
 # AmneziaWG Obfuscation Parameters
@@ -83,13 +83,14 @@ PersistentKeepalive = 25
 
 ```bash
 # Generate private key
-amneziawg genkey > privatekey
+# Note: command is "awg" on OpenWrt, "amneziawg" if built from source
+awg genkey > privatekey
 
 # Generate public key from private key
-amneziawg pubkey < privatekey > publickey
+awg pubkey < privatekey > publickey
 
 # Generate preshared key (optional)
-amneziawg genpsk > presharedkey
+awg genpsk > presharedkey
 ```
 
 ### Obfuscation Profiles (AmneziaWG 1.5)
@@ -483,6 +484,7 @@ config rule
     option src_mac 'XX:XX:XX:XX:XX:XX'
     option dest 'wan'
     option target 'ACCEPT'
+    option proto 'all'
 
 # IP-only (for VMs/containers where MAC may change)
 config rule
@@ -491,6 +493,7 @@ config rule
     option src_ip '192.168.1.100'
     option dest 'wan'
     option target 'ACCEPT'
+    option proto 'all'
 ```
 
 UCI commands:
@@ -503,6 +506,7 @@ uci set firewall.@rule[-1].src_ip='192.168.1.20'
 uci set firewall.@rule[-1].src_mac='XX:XX:XX:XX:XX:XX'
 uci set firewall.@rule[-1].dest='wan'
 uci set firewall.@rule[-1].target='ACCEPT'
+uci set firewall.@rule[-1].proto='all'  # IMPORTANT: without this, ICMP (ping) is blocked
 
 uci commit firewall
 /etc/init.d/firewall restart
@@ -615,10 +619,16 @@ dns:
     # Alternative: Quad9
     # - https://dns.quad9.net/dns-query
 
-  # Bootstrap DNS (for resolving upstream hostnames)
+  # Bootstrap DNS (for resolving upstream DoH hostnames)
+  # WARNING: These queries happen OUTSIDE the VPN tunnel. Using public DNS
+  # (1.1.1.1, 8.8.8.8, 9.9.9.9) here causes a DNS leak — your ISP can see
+  # which DoH provider you're resolving. Use your VPN provider's DNS instead.
   bootstrap_dns:
-    - 9.9.9.9
-    - 1.1.1.1
+    # Mullvad: 194.242.2.2, 194.242.2.3
+    # IVPN: 198.54.131.10
+    # Proton: 194.126.177.5
+    - 194.242.2.2  # Replace with your VPN provider's DNS
+    - 194.242.2.3  # Replace with your VPN provider's DNS
 
   # Enable DNSSEC validation
   enable_dnssec: true
@@ -700,8 +710,8 @@ users:
 ### Configuration Variables
 
 ```bash
-# Path to AmneziaWG config
-CONFIG_FILE="/etc/amneziawg/awg0.conf"
+# Server failover config (list of servers to try)
+SERVERS_FILE="/etc/amneziawg/servers.conf"
 
 # Log file location
 LOG_FILE="/var/log/awg-watchdog.log"
@@ -709,22 +719,34 @@ LOG_FILE="/var/log/awg-watchdog.log"
 # Seconds between connectivity checks
 CHECK_INTERVAL=30
 
-# Number of failures before restart
+# Number of consecutive failures before restart attempt
 FAIL_THRESHOLD=3
 
-# IPs to ping for connectivity test
-# Use reliable, geo-distributed targets
-PROBE_TARGETS="1.1.1.1 8.8.8.8"
+# Successful checks before attempting failback to primary server
+FAILBACK_THRESHOLD=10
+
+# IPs to ping for connectivity test (need MIN_PROBES to pass)
+PROBE_TARGETS="1.1.1.1 8.8.8.8 9.9.9.9"
+MIN_PROBES=2
 
 # Your VPN internal IP (from VPN provider)
-VPN_IP="10.x.x.x"
+# IMPORTANT: This must match the Address from your provider's WireGuard config.
+# A mismatch causes the watchdog to crash-loop — the tunnel comes up but
+# connectivity checks fail, triggering infinite restarts.
+VPN_IP="CHANGE_ME"
 
-# VPN server endpoint IP
-ENDPOINT_IP="vpn.server.ip"
+# LAN bridge interface (for bypass routing table)
+LAN_IFACE="br-lan"
 
-# Gateway for endpoint route (usually WAN gateway)
-# Set to your modem's IP or use auto-detection
-LAN_GATEWAY="192.168.1.1"
+# Seconds to wait after restart before checking connectivity
+# WireGuard keepalive is typically 25s — allow time for handshake
+RESTART_SETTLE_TIME=5
+
+# Seconds to back off after all servers have been tried and failed
+EXHAUSTION_BACKOFF=300
+
+# Obfuscation profile: basic, quic, dns, sip, stealth
+AWG_PROFILE="basic"
 ```
 
 ### Timing Parameters
@@ -733,7 +755,31 @@ LAN_GATEWAY="192.168.1.1"
 |-----------|---------|-------------|
 | `CHECK_INTERVAL` | 30 | Seconds between checks |
 | `FAIL_THRESHOLD` | 3 | Failures before restart |
-| Total detection time | 90s | CHECK_INTERVAL × FAIL_THRESHOLD |
+| `FAILBACK_THRESHOLD` | 10 | Successes before trying primary again |
+| `RESTART_SETTLE_TIME` | 5 | Wait after restart for handshake |
+| `EXHAUSTION_BACKOFF` | 300 | Cooldown after all servers fail |
+| Detection time | 90s | CHECK_INTERVAL × FAIL_THRESHOLD |
+
+### Failover Behavior
+
+The watchdog uses a progressive restart strategy:
+
+1. **First failure**: Restart tunnel on the **same server** (handles transient issues)
+2. **Repeated failures**: Cycle to the **next server** in `servers.conf`
+3. **All servers exhausted**: Back off for `EXHAUSTION_BACKOFF` seconds before retrying
+
+This avoids unnecessary failover for brief connectivity blips while still recovering from server outages.
+
+### Command Name
+
+AmneziaWG packages install under different command names depending on the source:
+
+| Installation | Command | Package |
+|-------------|---------|---------|
+| OpenWrt (awg-openwrt) | `awg` | `amneziawg-tools` |
+| Built from source | `amneziawg` | N/A |
+
+The watchdog and hotplug scripts auto-detect which command is available.
 
 ### Log Rotation
 
@@ -743,6 +789,38 @@ Add to cron (`/etc/crontabs/root`):
 # Rotate watchdog log daily at 4am, keep 7 days
 0 4 * * * /usr/bin/find /var/log -name 'awg-watchdog.log.*' -mtime +7 -delete; /bin/mv /var/log/awg-watchdog.log /var/log/awg-watchdog.log.$(date +\%Y\%m\%d)
 ```
+
+---
+
+## TCP Buffer Tuning (High-Latency Links)
+
+If your VPN server is geographically distant (e.g., Australia → US, Europe → Asia), default TCP buffer sizes limit throughput. The bottleneck is the **bandwidth-delay product** (BDP):
+
+```
+BDP = Bandwidth × RTT
+Example: 100 Mbps × 184ms = 2.3 MB needed in flight
+Default buffer: 208 KB → severe bottleneck
+```
+
+**File:** `/etc/sysctl.conf`
+
+```ini
+# TCP buffer tuning for high-latency VPN links
+# Increase from default 208KB to 16MB for high BDP connections
+net.core.rmem_max = 16777216
+net.core.wmem_max = 16777216
+net.ipv4.tcp_rmem = 4096 131072 16777216
+net.ipv4.tcp_wmem = 4096 16384 16777216
+```
+
+Apply:
+```bash
+sysctl -p
+```
+
+**When to use:** If your VPN adds >100ms latency and you have >50 Mbps WAN speed. Without this, single-stream speeds may cap at 5-30 Mbps despite a fast connection.
+
+**Skip if:** Your VPN server is nearby (<50ms latency) or your WAN speed is <50 Mbps.
 
 ---
 

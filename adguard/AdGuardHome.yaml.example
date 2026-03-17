@@ -55,11 +55,17 @@ dns:
   # ==========================================================================
   # BOOTSTRAP DNS
   # ==========================================================================
-  # Used to resolve upstream DNS hostnames at startup
-  # These are only used before VPN connects
+  # Used to resolve upstream DoH hostnames (e.g., dns.example.com).
+  # WARNING: These queries happen OUTSIDE the VPN tunnel!
+  # Using public DNS (1.1.1.1, 8.8.8.8) here causes a DNS LEAK —
+  # your ISP can see which DoH provider you're resolving.
+  # Use your VPN provider's DNS servers instead:
+  #   Mullvad: 194.242.2.2, 194.242.2.3
+  #   IVPN: 198.54.131.10
+  #   Proton: 194.126.177.5
   bootstrap_dns:
-    - 9.9.9.9
-    - 1.1.1.1
+    - 194.242.2.2   # CHANGE to your VPN provider's DNS
+    - 194.242.2.3   # CHANGE to your VPN provider's DNS
 
   # Fallback DNS (if upstream fails)
   fallback_dns: []

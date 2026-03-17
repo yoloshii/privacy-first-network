@@ -6,8 +6,11 @@
 # Advanced watchdog that:
 # - Monitors VPN tunnel health
 # - Fails over to backup servers when primary is down
+# - Tries same server first, then cycles on repeated failures
+# - Backs off after exhausting all servers
 # - Automatically returns to primary when it recovers
-# - Maintains kill switch during failover
+# - Maintains kill switch and bypass routing during failover
+# - Forces handshake after tunnel restart for reliable detection
 #
 # Installation:
 #   1. Copy to /etc/awg-watchdog.sh
@@ -38,7 +41,7 @@ STATE_FILE="/tmp/awg_current_server"
 # Seconds between connectivity checks
 CHECK_INTERVAL=30
 
-# Number of consecutive failures before failover
+# Number of consecutive failures before restart attempt
 FAIL_THRESHOLD=3
 
 # Number of successful checks before attempting failback to primary
@@ -55,10 +58,37 @@ MIN_PROBES=2
 # Get this from your provider's WireGuard config generator
 VPN_IP="CHANGE_ME"
 
+# LAN bridge interface name (for bypass routing table)
+LAN_IFACE="br-lan"
+
+# Seconds to wait after tunnel restart before checking connectivity
+# WireGuard keepalive is typically 25s — allow enough time for handshake
+RESTART_SETTLE_TIME=5
+
+# Seconds to back off after all servers have been tried and failed
+EXHAUSTION_BACKOFF=300
+
 # Obfuscation profile (AmneziaWG 1.5)
 # Options: basic, quic, dns, sip, stealth
 # All profiles work with standard WireGuard servers
 AWG_PROFILE="basic"
+
+# =============================================================================
+# COMMAND DETECTION
+# =============================================================================
+# AmneziaWG command name varies by installation method:
+#   - OpenWrt packages from awg-openwrt: "awg"
+#   - Built from source or other distros: "amneziawg"
+
+if command -v awg >/dev/null 2>&1; then
+    AWG_CMD="awg"
+elif command -v amneziawg >/dev/null 2>&1; then
+    AWG_CMD="amneziawg"
+else
+    echo "ERROR: Neither 'awg' nor 'amneziawg' found in PATH"
+    echo "Install AmneziaWG: https://github.com/amnezia-vpn/amneziawg-openwrt"
+    exit 1
+fi
 
 # =============================================================================
 # PROFILE SUPPORT
@@ -133,6 +163,16 @@ get_wan_gateway() {
     echo "$gw"
 }
 
+# Detect LAN subnet from bridge interface
+get_lan_subnet() {
+    local addr
+    addr=$(ip -4 addr show "$LAN_IFACE" 2>/dev/null | grep -o 'inet [0-9.]*' | awk '{print $2}')
+    if [ -n "$addr" ]; then
+        # Convert host IP to .0/24 network (covers most home networks)
+        echo "$addr" | sed 's/\.[0-9]*$/.0\/24/'
+    fi
+}
+
 # Check connectivity through VPN tunnel
 check_connectivity() {
     local success=0
@@ -167,6 +207,11 @@ switch_server() {
     local gateway
     gateway=$(get_wan_gateway)
 
+    if [ -z "$gateway" ]; then
+        log "ERROR: Cannot determine WAN gateway"
+        return 1
+    fi
+
     # 1. Tear down existing interface
     ip link del dev awg0 2>/dev/null
     sleep 1
@@ -179,7 +224,6 @@ switch_server() {
     fi
 
     # 3. Generate runtime config with new endpoint
-    # Uses base config and updates endpoint
     local base_config="$CONFIG_DIR/awg0.conf"
     local runtime_config="/tmp/awg0-runtime.conf"
     local final_config="/tmp/awg0-final.conf"
@@ -201,7 +245,7 @@ switch_server() {
     fi
 
     # 4. Apply configuration
-    /usr/bin/amneziawg setconf awg0 "$runtime_config"
+    $AWG_CMD setconf awg0 "$runtime_config"
     if [ $? -ne 0 ]; then
         log "ERROR: Failed to apply configuration for $name"
         return 1
@@ -217,19 +261,27 @@ switch_server() {
     ip route replace "$endpoint" via "$gateway" dev eth0
 
     # 8. Maintain bypass routing table (table 100)
-    # Devices using policy routing with table 100 exit via WAN instead of VPN
-    # Must refresh on each server switch in case WAN gateway changed
     ip route replace default via "$gateway" dev eth0 table 100
 
+    # 8b. Add LAN route to bypass table
+    # Without this, bypass devices cannot reach other LAN devices
+    local lan_net
+    lan_net=$(get_lan_subnet)
+    if [ -n "$lan_net" ]; then
+        ip route replace "$lan_net" dev "$LAN_IFACE" table 100
+    fi
+
     # 9. Add VPN split routes (more specific than default, covers all IPv4)
-    # 0.0.0.0/1   = 0.0.0.0   - 127.255.255.255
-    # 128.0.0.0/1 = 128.0.0.0 - 255.255.255.255
-    # This ensures kill switch works - all traffic goes to awg0
     ip route replace 0.0.0.0/1 dev awg0
     ip route replace 128.0.0.0/1 dev awg0
 
-    # Wait for handshake
-    sleep 3
+    # 10. Force handshake by sending traffic through tunnel
+    # WireGuard won't handshake until traffic is sent. Without this,
+    # the connectivity check may fail even though the server is reachable.
+    local first_probe
+    first_probe=$(echo $PROBE_TARGETS | awk '{print $1}')
+    ping -c 1 -W 10 -I awg0 "$first_probe" >/dev/null 2>&1
+    sleep $RESTART_SETTLE_TIME
 
     # Verify connectivity
     if check_connectivity; then
@@ -241,7 +293,22 @@ switch_server() {
     fi
 }
 
-# Initiate failover to next server
+# Restart tunnel on current server (no failover)
+restart_current() {
+    local current_idx
+    current_idx=$(get_current_index)
+    local server_line
+    server_line=$(get_server $current_idx)
+
+    log "Restarting tunnel on current server (index $current_idx)"
+
+    if switch_server "$server_line"; then
+        return 0
+    fi
+    return 1
+}
+
+# Cycle through servers until one works
 do_failover() {
     local current_idx
     current_idx=$(get_current_index)
@@ -322,18 +389,22 @@ load_servers
 # Initialize state
 fail_count=0
 success_count=0
+consecutive_restart_fails=0
 set_current_index 0
 
-log "AWG watchdog starting (check: ${CHECK_INTERVAL}s, failover: ${FAIL_THRESHOLD} failures, failback: ${FAILBACK_THRESHOLD} successes)"
+log "AWG watchdog starting (check: ${CHECK_INTERVAL}s, failover after: ${FAIL_THRESHOLD} failures, failback after: ${FAILBACK_THRESHOLD} successes)"
 
 # Main monitoring loop
 while true; do
+    sleep $CHECK_INTERVAL
+
     if check_connectivity; then
         # Tunnel is healthy
         if [ $fail_count -gt 0 ]; then
             log "Connectivity restored"
         fi
         fail_count=0
+        consecutive_restart_fails=0
         success_count=$((success_count + 1))
 
         # Check for failback opportunity
@@ -348,13 +419,30 @@ while true; do
         log "Connectivity check failed ($fail_count/$FAIL_THRESHOLD)"
 
         if [ $fail_count -ge $FAIL_THRESHOLD ]; then
-            # Threshold reached, failover
-            do_failover
+            # First attempt: try restarting on same server
+            # (handles transient issues without unnecessary failover)
+            # Subsequent attempts: cycle to next server
+            if [ $consecutive_restart_fails -eq 0 ]; then
+                restart_current
+            else
+                do_failover
+            fi
+
+            if ! check_connectivity; then
+                consecutive_restart_fails=$((consecutive_restart_fails + 1))
+                log "Restart failed, consecutive failures: $consecutive_restart_fails"
+
+                # After trying all servers, back off before retrying
+                if [ $consecutive_restart_fails -ge "$SERVER_COUNT" ]; then
+                    log "All servers exhausted, backing off ${EXHAUSTION_BACKOFF}s before retry cycle"
+                    sleep $EXHAUSTION_BACKOFF
+                    consecutive_restart_fails=0
+                fi
+            else
+                consecutive_restart_fails=0
+            fi
+
             fail_count=0
-            # Wait for tunnel to stabilize
-            sleep 5
         fi
     fi
-
-    sleep $CHECK_INTERVAL
 done

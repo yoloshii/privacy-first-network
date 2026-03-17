@@ -33,11 +33,13 @@ dns:
     # - https://dns.quad9.net/dns-query
     # - https://cloudflare-dns.com/dns-query
 
-  # Bootstrap DNS (for resolving upstream hostnames)
-  # These are only used to resolve the DoH server hostnames
+  # Bootstrap DNS (for resolving upstream DoH hostnames)
+  # WARNING: These queries bypass the VPN tunnel!
+  # Using public DNS (1.1.1.1, 9.9.9.9) causes a DNS leak.
+  # Use your VPN provider's DNS instead.
   bootstrap_dns:
-    - 9.9.9.9
-    - 1.1.1.1
+    - 194.242.2.2   # Mullvad DNS — CHANGE to your provider's DNS
+    - 194.242.2.3   # Mullvad DNS — CHANGE to your provider's DNS
 
   # Enable DNSSEC validation
   enable_dnssec: true

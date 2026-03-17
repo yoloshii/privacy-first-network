@@ -11,9 +11,10 @@
 #
 # Features:
 # - Dynamic WAN gateway detection (works with DHCP WANs)
-# - Bypass routing table (table 100) for devices that need direct WAN access
+# - Bypass routing table (table 100) with LAN route for device connectivity
 # - Split routes (0.0.0.0/1 + 128.0.0.0/1) for kill switch compatibility
 # - Profile-based obfuscation support
+# - Forced handshake for reliable tunnel establishment
 #
 # Installation:
 #   1. Copy to /etc/hotplug.d/iface/99-awg
@@ -51,9 +52,28 @@ CONFIG_FILE="/etc/amneziawg/awg0.conf"
 # REQUIRED: Get this from your provider's WireGuard config generator
 VPN_IP="CHANGE_ME"
 
+# LAN bridge interface name (for bypass routing table)
+LAN_IFACE="br-lan"
+
 # Obfuscation profile (AmneziaWG 1.5)
 # Options: basic, quic, dns, sip, stealth
 AWG_PROFILE="basic"
+
+# =============================================================================
+# COMMAND DETECTION
+# =============================================================================
+# AmneziaWG command varies by installation:
+#   - OpenWrt packages (awg-openwrt): "awg"
+#   - Built from source / other distros: "amneziawg"
+
+if command -v awg >/dev/null 2>&1; then
+    AWG_CMD="awg"
+elif command -v amneziawg >/dev/null 2>&1; then
+    AWG_CMD="amneziawg"
+else
+    logger -t awg-hotplug "ERROR: Neither 'awg' nor 'amneziawg' found"
+    exit 1
+fi
 
 # =============================================================================
 # DYNAMIC GATEWAY DETECTION
@@ -108,7 +128,7 @@ if ! ip link add dev awg0 type amneziawg; then
 fi
 
 # Apply config
-if ! /usr/bin/amneziawg setconf awg0 "$CONFIG_TO_USE"; then
+if ! $AWG_CMD setconf awg0 "$CONFIG_TO_USE"; then
     logger -t awg-hotplug "ERROR: Failed to apply config from $CONFIG_FILE"
     ip link del dev awg0
     exit 1
@@ -139,6 +159,18 @@ fi
 # Devices can be routed here via policy rules in /etc/rc.local
 # They'll exit directly via WAN instead of through VPN
 ip route replace default via $WAN_GW dev eth0 table 100
+
+# Step 2b: Add LAN route to bypass table
+# Without this, bypass devices cannot reach other LAN devices or the router.
+# This was a common post-deployment issue — bypass devices got "Network unreachable"
+# for LAN targets because table 100 only had a WAN default route.
+LAN_ADDR=$(ip -4 addr show "$LAN_IFACE" 2>/dev/null | grep -o 'inet [0-9.]*' | awk '{print $2}')
+if [ -n "$LAN_ADDR" ]; then
+    LAN_NET=$(echo "$LAN_ADDR" | sed 's/\.[0-9]*$/.0\/24/')
+    ip route replace "$LAN_NET" dev "$LAN_IFACE" table 100
+    logger -t awg-hotplug "Bypass table 100: LAN route $LAN_NET added"
+fi
+
 logger -t awg-hotplug "Bypass table 100 configured via $WAN_GW"
 
 # Step 3: Add VPN split routes
@@ -148,6 +180,11 @@ logger -t awg-hotplug "Bypass table 100 configured via $WAN_GW"
 # Result: All traffic goes to awg0 UNLESS policy routing says otherwise
 ip route replace 0.0.0.0/1 dev awg0
 ip route replace 128.0.0.0/1 dev awg0
+
+# Step 4: Force handshake
+# WireGuard won't initiate a handshake until traffic is sent through the tunnel.
+# Without this, the tunnel appears "up" but has no active session.
+ping -c 1 -W 10 -I awg0 1.1.1.1 >/dev/null 2>&1
 
 logger -t awg-hotplug "AmneziaWG tunnel started - VPN_IP=$VPN_IP, profile=$AWG_PROFILE"
 
@@ -159,4 +196,7 @@ logger -t awg-hotplug "AmneziaWG tunnel started - VPN_IP=$VPN_IP, profile=$AWG_P
 #
 # Bypass devices also need firewall rules to allow lan→wan forwarding
 # See: /etc/config/firewall bypass rules
+#
+# IMPORTANT: Bypass firewall rules must use 'option proto all' to allow
+# ICMP (ping) in addition to TCP/UDP traffic.
 # =============================================================================

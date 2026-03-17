@@ -53,11 +53,14 @@ dns:
   # ==========================================================================
   # BOOTSTRAP DNS
   # ==========================================================================
-  # Used ONLY to resolve DoH hostnames at startup
-  # After VPN connects, all DNS goes through the tunnel
+  # Used to resolve DoH hostnames (e.g., adblock.dns.mullvad.net).
+  # WARNING: These queries happen OUTSIDE the VPN tunnel!
+  # Using public DNS (1.1.1.1, 8.8.8.8, 9.9.9.9) here causes a DNS LEAK —
+  # your ISP can see which DoH provider you're resolving.
+  # Use Mullvad's own DNS servers instead.
   bootstrap_dns:
-    - 9.9.9.9
-    - 1.1.1.1
+    - 194.242.2.2   # Mullvad DNS (primary)
+    - 194.242.2.3   # Mullvad DNS (secondary)
 
   # Parallel upstream queries for speed
   upstream_mode: load_balance

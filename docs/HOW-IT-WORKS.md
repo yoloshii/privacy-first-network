@@ -269,6 +269,7 @@ Main Table (after VPN up):
 
 Table 100 (bypass):
   default via 192.168.1.254 dev eth0  ← WAN gateway (no split routes!)
+  192.168.1.0/24 dev br-lan           ← LAN route (bypass devices need LAN access)
 
 Why split routes?
 - Standard "default" route: 0.0.0.0/0 (prefix length 0)
@@ -331,6 +332,7 @@ Why split routes?
 │  1. ROUTING TABLE 100 (created by 99-awg hotplug)              │
 │     ip route show table 100                                     │
 │     → default via <WAN_GW> dev eth0                            │
+│     → <LAN_SUBNET> dev br-lan (for LAN connectivity)           │
 │                                                                 │
 │  2. POLICY RULES (set in /etc/rc.local)                        │
 │     ip rule show | grep 100                                     │
@@ -344,6 +346,7 @@ Why split routes?
 │         option src_ip '192.168.1.X'                            │
 │         option dest 'wan'                                       │
 │         option target 'ACCEPT'                                  │
+│         option proto 'all'  ← without this, ICMP blocked       │
 │                                                                 │
 │  Missing any component = bypass fails:                          │
 │  - No table 100 = policy rule has nothing to use               │
@@ -433,7 +436,7 @@ Always add your DNS server to bypass list!
 ip link add dev awg0 type amneziawg
 
 # 2. Apply configuration (keys, endpoint, allowed IPs)
-amneziawg setconf awg0 /etc/amneziawg/awg0.conf
+awg setconf awg0 /etc/amneziawg/awg0.conf
 
 # 3. Assign internal VPN IP
 ip address add 10.x.x.x/32 dev awg0
@@ -562,6 +565,16 @@ config dhcp 'lan'
 │    AdGuard uses HTTPS to Mullvad DNS                           │
 │    Even inside VPN tunnel, DNS is encrypted                    │
 │                                                                 │
+│ 5. Bootstrap DNS → USE VPN PROVIDER DNS                         │
+│    AdGuard resolves DoH hostnames via bootstrap_dns            │
+│    Using 1.1.1.1 or 8.8.8.8 here = LEAK (bypasses VPN)       │
+│    Fix: Set bootstrap_dns to VPN provider DNS IPs              │
+│                                                                 │
+│ 6. IPv6 AAAA records → DISABLED                                 │
+│    aaaa_disabled: true in AdGuard config                       │
+│    Prevents devices trying IPv6 with no IPv6 VPN route         │
+│    Without this: Smart TV streaming may break                  │
+│                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -624,7 +637,7 @@ restart_tunnel() {
     ip link add dev awg0 type amneziawg
 
     # 3. CONFIGURE - Apply WireGuard config
-    amneziawg setconf awg0 /etc/amneziawg/awg0.conf
+    awg setconf awg0 /etc/amneziawg/awg0.conf
 
     # 4. ADDRESS - Assign VPN internal IP
     ip address add $VPN_IP/32 dev awg0
@@ -633,12 +646,21 @@ restart_tunnel() {
     ip link set up dev awg0
 
     # 6. ROUTING (CRITICAL ORDER)
-    #    Endpoint route MUST come before default route
-    ip route add $ENDPOINT_IP via $WAN_GATEWAY 2>/dev/null
+    #    Endpoint route MUST come before split routes
+    ip route replace $ENDPOINT_IP via $WAN_GATEWAY dev eth0
 
-    # 7. DEFAULT ROUTE - All traffic via VPN
-    ip route del default 2>/dev/null
-    ip route add default dev awg0
+    # 7. BYPASS TABLE - Refresh table 100 for bypass devices
+    ip route replace default via $WAN_GATEWAY dev eth0 table 100
+    # LAN route in table 100 - without this, bypass devices can't reach LAN
+    ip route replace 192.168.1.0/24 dev br-lan table 100
+
+    # 8. SPLIT ROUTES - All traffic via VPN (more specific than default)
+    ip route replace 0.0.0.0/1 dev awg0
+    ip route replace 128.0.0.0/1 dev awg0
+
+    # 9. FORCE HANDSHAKE - WireGuard won't handshake until traffic is sent
+    ping -c 1 -W 10 -I awg0 1.1.1.1 >/dev/null 2>&1
+    sleep 5  # Allow handshake to complete
 }
 ```
 
@@ -738,8 +760,9 @@ Jc = 4
 Jmin = 40
 Jmax = 70
 
-# Note: Both client and server MUST use identical values
-# Different values = handshake failure
+# Note: Obfuscation is CLIENT-SIDE only for standard WireGuard servers.
+# VPN providers (Mullvad, IVPN, etc.) don't need matching values.
+# Only self-hosted AmneziaWG servers need matching parameters.
 ```
 
 ---
@@ -776,6 +799,22 @@ AmneziaWG overhead:
 - Minimal bandwidth overhead from junk packets
 ```
 
+### TCP Buffer Tuning (High-Latency Links)
+
+Default TCP buffers (208KB) bottleneck high-latency connections. The required buffer size is determined by the bandwidth-delay product:
+
+```
+BDP = Bandwidth × RTT
+
+Example: 100 Mbps WAN, 184ms RTT to VPN server
+BDP = 100,000,000 × 0.184 = 18,400,000 bits = 2.3 MB
+
+Default buffer: 208 KB = severe bottleneck
+Tuned buffer: 16 MB = no bottleneck
+```
+
+Without tuning, single-stream speeds may cap at 5-30 Mbps despite a fast WAN connection. See [CONFIGURATION.md](CONFIGURATION.md#tcp-buffer-tuning-high-latency-links) for sysctl settings.
+
 ### Optimization Tips
 
 ```
@@ -784,4 +823,5 @@ AmneziaWG overhead:
 3. Reduce Jc value if obfuscation not critical
 4. Use geographically close VPN server
 5. Enable DNS caching (AdGuard does this automatically)
+6. Tune TCP buffers for high-latency links (sysctl.conf)
 ```

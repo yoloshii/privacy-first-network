@@ -10,7 +10,9 @@ Common issues and their solutions.
 4. [Kill Switch Issues](#kill-switch-issues)
 5. [VPN Bypass Issues](#vpn-bypass-issues)
 6. [Performance Issues](#performance-issues)
-7. [Diagnostic Commands](#diagnostic-commands)
+7. [Script & Service Issues](#script--service-issues)
+8. [Boot & Startup Issues](#boot--startup-issues)
+9. [Diagnostic Commands](#diagnostic-commands)
 
 ---
 
@@ -21,7 +23,7 @@ Common issues and their solutions.
 **Symptoms:**
 - `awg0` interface exists but no handshake
 - No traffic through tunnel
-- `amneziawg show awg0` shows no recent handshake
+- `awg show awg0` (or `amneziawg show awg0`) shows no recent handshake
 
 **Diagnosis:**
 
@@ -30,7 +32,7 @@ Common issues and their solutions.
 ip link show awg0
 
 # Check WireGuard status
-amneziawg show awg0
+awg show awg0
 
 # Look for handshake time
 # "latest handshake: X seconds ago" = working
@@ -762,6 +764,168 @@ speedtest-cli
 
 ---
 
+## Script & Service Issues
+
+### Watchdog Crash-Loops on Boot
+
+**Symptoms:**
+- `logread | grep awg` shows: `awg-watchdog crash loop N crashes`
+- VPN tunnel never comes up after boot
+- procd gives up restarting the watchdog
+
+**Common causes:**
+
+1. **Wrong VPN_IP:**
+   ```bash
+   # Check what the scripts think the IP should be
+   grep 'VPN_IP=' /etc/awg-watchdog.sh /etc/hotplug.d/iface/99-awg
+
+   # Check what the actual tunnel IP is (if tunnel is up)
+   ip addr show awg0 | grep inet
+
+   # They MUST match. If not, update the scripts:
+   # VPN_IP must match the Address from your VPN provider's config
+   ```
+
+2. **Script corruption — shebang:**
+   ```bash
+   # Check for corrupted shebang (backslash-bang)
+   head -1 /etc/awg-watchdog.sh /etc/hotplug.d/iface/99-awg
+   # Should show: #!/bin/sh
+   # NOT: #\!/bin/sh
+
+   # Fix:
+   sed -i '1s|^#\\!|#!|' /etc/awg-watchdog.sh /etc/hotplug.d/iface/99-awg
+   ```
+
+3. **Script corruption — conditionals:**
+   ```bash
+   # Check for escaped bangs in conditionals
+   grep '\\!' /etc/awg-watchdog.sh /etc/hotplug.d/iface/99-awg
+   # Should return NOTHING
+
+   # Fix:
+   sed -i 's/\\!/!/g' /etc/awg-watchdog.sh /etc/hotplug.d/iface/99-awg
+   ```
+
+**How corruption happens:** Some text editors (especially when editing over SSH or copying between systems) escape `!` characters. The shell interprets `\!` literally, breaking conditionals like `if ! command` and shebangs like `#!/bin/sh`.
+
+### Changes to Watchdog Script Not Taking Effect
+
+**Symptom:** You fixed the script, but the same error keeps appearing in logs.
+
+**Root cause:** procd runs the watchdog as a daemon. The running process uses the **old script loaded into memory**. Editing the file on disk does NOT affect the running daemon.
+
+**Fix:**
+```bash
+# ALWAYS restart the service after editing the script
+/etc/init.d/awg-watchdog restart
+
+# Verify the new process is running
+ps | grep awg-watchdog | grep -v grep
+```
+
+This applies to any procd-managed service on OpenWrt, not just the watchdog.
+
+### AmneziaWG Command Not Found
+
+**Symptom:** `amneziawg: not found` or `awg: not found`
+
+**Cause:** The command name depends on how AmneziaWG was installed:
+
+| Source | Command |
+|--------|---------|
+| OpenWrt packages (awg-openwrt) | `awg` |
+| Built from source | `amneziawg` |
+
+**Fix:** Check which one you have:
+```bash
+which awg amneziawg 2>/dev/null
+```
+
+The watchdog and hotplug scripts auto-detect the available command. If you're running commands manually, use whichever is installed.
+
+---
+
+## Boot & Startup Issues
+
+### AdGuard DNS Fails After Boot (VM/Container Deployments)
+
+**Symptoms:**
+- AdGuard container is running but `eth0` has no IP
+- DNS resolution fails for all devices
+- Network appears down despite VPN tunnel being up
+
+**Root cause:** Boot timing race condition. If AdGuard runs in a separate VM or container and uses DHCP, it may request an IP before the router's DHCP server (dnsmasq) is ready.
+
+**Diagnosis:**
+```bash
+# Check if AdGuard's interface has an IP
+# (run inside the AdGuard VM/container)
+ip addr show eth0 | grep 'inet '
+
+# If no IP shown, the race condition hit
+```
+
+**Solutions:**
+
+1. **Use static IP instead of DHCP (recommended):**
+
+   In the AdGuard VM/container, configure a static IP via systemd-networkd:
+
+   **File:** `/etc/systemd/network/eth0.network`
+   ```ini
+   [Match]
+   Name=eth0
+
+   [Network]
+   Address=192.168.1.5/24
+   Gateway=192.168.1.1
+   DNS=127.0.0.1
+   ```
+
+   Then restart: `systemctl restart systemd-networkd`
+
+   This eliminates the DHCP dependency entirely.
+
+2. **Add startup delay (if DHCP is required):**
+
+   For Proxmox containers:
+   ```bash
+   pct set <CTID> -startup order=2,up=30
+   ```
+
+   This waits 30 seconds after starting the container, giving the router time to boot its DHCP server.
+
+3. **Manual recovery:**
+   ```bash
+   # If it already happened, restart networking
+   systemctl restart systemd-networkd
+   # Or bring interface up manually
+   ip link set eth0 up
+   ```
+
+### Smart TV / Streaming Broken Despite VPN Working
+
+**Symptoms:**
+- YouTube, Netflix, or other streaming apps fail on Smart TVs
+- VPN is connected and working for other devices
+- Pinging IPs works, but some apps break
+
+**Root cause:** AdGuard is returning IPv6 (AAAA) DNS records, but the VPN tunnel is IPv4-only. Devices try to connect over IPv6, which has no VPN route.
+
+**Fix:** Disable AAAA records in AdGuard Home:
+
+In `/opt/AdGuardHome/AdGuardHome.yaml`:
+```yaml
+dns:
+  aaaa_disabled: true
+```
+
+Restart AdGuard Home after the change.
+
+---
+
 ## Diagnostic Commands
 
 ### System Status
@@ -787,13 +951,13 @@ netstat -tn
 
 ```bash
 # WireGuard status
-amneziawg show awg0
+awg show awg0
 
 # Check handshake time
-amneziawg show awg0 | grep 'latest handshake'
+awg show awg0 | grep 'latest handshake'
 
 # Traffic statistics
-amneziawg show awg0 | grep 'transfer'
+awg show awg0 | grep 'transfer'
 
 # Interface details
 ip addr show awg0
@@ -871,7 +1035,7 @@ If you're still stuck:
 1. Collect diagnostic output:
    ```bash
    ip route
-   amneziawg show awg0
+   awg show awg0
    uci show firewall
    logread | tail -100
    ```
