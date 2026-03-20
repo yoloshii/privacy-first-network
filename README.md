@@ -506,11 +506,11 @@ Search: "XRay traffic obfuscation setup 2025"
 
 For complex deployments or troubleshooting, give an AI coding agent access to this **entire repository** plus SSH access to your router (if you don't know how, ask the agent to guide you).
 
-**Recommended:** This stack was developed, tested, and deployed using **Claude Opus 4.5** via [Claude Code](https://claude.com/claude-code). For best results, use a capable frontier model that can execute shell commands and understand network configuration:
+**Recommended:** This stack was developed, tested, and deployed using **Claude Opus 4.6** via [Claude Code](https://claude.com/claude-code). For best results, use a capable frontier model that can execute shell commands and understand network configuration:
 
-- **Claude Opus 4.5 / Sonnet 4.5** (Anthropic) - Used for this implementation
-- **GPT-5.1** (OpenAI)
-- **Gemini 3** (Google)
+- **Claude Opus 4.6 / Sonnet 4.6** (Anthropic) - Used for this implementation
+- **GPT-5.4** (OpenAI)
+- **Gemini 3.1** (Google)
 
 **What the agent can do:**
 - **Network audit** - Probe your current setup and identify requirements
