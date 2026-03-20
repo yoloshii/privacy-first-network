@@ -768,7 +768,7 @@ Guidelines:
 - Monitors connectivity by pinging through tunnel (2 packets × 5s timeout, 2/3 probes must pass)
 - After 3 consecutive failures, runs recovery gates before restarting:
   - **Gate 1 — WAN check:** Pings WAN gateway. If unreachable → ISP issue, skip VPN restart
-  - **Gate 2 — Handshake check:** If handshake < 120s old → tunnel is alive, attempt soft bounce (re-handshake without teardown)
+  - **Gate 2 — Handshake + transfer check:** If handshake < 120s old AND rx bytes changing → tunnel is alive, attempt soft bounce. If handshake fresh but rx stale → zombie tunnel, skip to full restart
   - **Gate 3 — Full restart:** Tears down and rebuilds tunnel on **same server** first
 - If same-server restart fails → cycles to **next server** in list
 - After all servers exhausted → backs off 5 minutes before retrying

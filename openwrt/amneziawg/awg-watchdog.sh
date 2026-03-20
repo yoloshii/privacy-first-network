@@ -235,6 +235,23 @@ check_handshake_fresh() {
     [ "$age" -lt "$HANDSHAKE_FRESH" ]
 }
 
+# Get current rx bytes from WireGuard transfer stats (cumulative)
+get_rx_bytes() {
+    $AWG_CMD show awg0 transfer 2>/dev/null | awk '{print $2}'
+}
+
+# Check if tunnel is passing traffic (rx bytes changed since last snapshot).
+# A tunnel with a fresh handshake but zero rx change is a "zombie" —
+# the crypto session completed but data isn't flowing (broken NAT,
+# stale conntrack, CGNAT reassigned the mapping, etc).
+check_transfer_active() {
+    local current_rx
+    current_rx=$(get_rx_bytes)
+    [ -z "$current_rx" ] && return 1
+    [ "$current_rx" = "$LAST_RX_BYTES" ] && return 1
+    return 0
+}
+
 # Force traffic through tunnel to trigger re-handshake without teardown.
 # This is much less disruptive than a full restart — no route teardown,
 # no conntrack flush, no brief outage for all connected devices.
@@ -450,6 +467,7 @@ load_servers
 fail_count=0
 success_count=0
 consecutive_restart_fails=0
+LAST_RX_BYTES=$(get_rx_bytes)
 set_current_index 0
 
 log "AWG watchdog starting (check: ${CHECK_INTERVAL}s, probe: ${PROBE_COUNT}x${PROBE_TIMEOUT}s, failover after: ${FAIL_THRESHOLD} failures, failback after: ${FAILBACK_THRESHOLD} successes)"
@@ -459,7 +477,8 @@ while true; do
     sleep $CHECK_INTERVAL
 
     if check_connectivity; then
-        # Tunnel is healthy
+        # Tunnel is healthy — snapshot rx bytes for zombie detection
+        LAST_RX_BYTES=$(get_rx_bytes)
         if [ $fail_count -gt 0 ]; then
             log "Connectivity restored"
         fi
@@ -498,12 +517,20 @@ while true; do
     # A recent handshake means the crypto session is alive — probes failed
     # due to transient packet loss, not a dead tunnel. Try a soft bounce
     # (force re-handshake) instead of tearing everything down.
+    #
+    # Exception: if handshake is fresh but rx bytes haven't changed since
+    # the last successful check, the tunnel is a "zombie" — crypto alive
+    # but not passing traffic. Skip soft bounce and go straight to restart.
     if check_handshake_fresh; then
-        if soft_bounce; then
+        if ! check_transfer_active; then
+            log "Zombie tunnel: handshake fresh but zero rx change — skipping soft bounce"
+        elif soft_bounce; then
+            LAST_RX_BYTES=$(get_rx_bytes)
             consecutive_restart_fails=0
             continue
+        else
+            log "Handshake fresh but soft bounce failed — proceeding to full restart"
         fi
-        log "Handshake fresh but soft bounce failed — proceeding to full restart"
     else
         log "Handshake stale — proceeding to full restart"
     fi

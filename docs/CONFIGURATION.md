@@ -778,7 +778,7 @@ AWG_PROFILE="basic"
 The watchdog uses a gated recovery strategy to avoid unnecessary restarts:
 
 1. **Gate 1 — WAN check**: Pings WAN gateway. If unreachable, it's an ISP issue — restarting VPN is pointless, so the watchdog waits.
-2. **Gate 2 — Handshake check**: If the WireGuard handshake is < `HANDSHAKE_FRESH` seconds old, the tunnel is cryptographically alive. The watchdog attempts a **soft bounce** (forces traffic through the tunnel to trigger re-handshake) without tearing down the interface.
+2. **Gate 2 — Handshake + transfer check**: If the WireGuard handshake is < `HANDSHAKE_FRESH` seconds old AND rx bytes are changing (traffic is flowing), the tunnel is alive. The watchdog attempts a **soft bounce** (forces traffic through the tunnel to trigger re-handshake) without tearing down the interface. If the handshake is fresh but rx bytes haven't changed since the last successful check, the tunnel is a "zombie" — crypto alive but not passing traffic — and soft bounce is skipped.
 3. **Gate 3 — Full restart**: Only reached when the tunnel is genuinely dead. First attempt restarts on the **same server**. Subsequent failures cycle to the **next server** in `servers.conf`. After all servers are exhausted, backs off for `EXHAUSTION_BACKOFF` seconds.
 
 This prevents false restarts from transient ISP jitter on high-latency links (common with CGNAT, LTE, satellite). The soft bounce recovers most "failures" without disrupting connected devices.
