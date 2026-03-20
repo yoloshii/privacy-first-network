@@ -729,6 +729,16 @@ FAILBACK_THRESHOLD=10
 PROBE_TARGETS="1.1.1.1 8.8.8.8 9.9.9.9"
 MIN_PROBES=2
 
+# Seconds to wait for each probe ping reply
+# On high-latency links (VPN RTT >150ms), increase this
+PROBE_TIMEOUT=5
+
+# Number of ping packets per probe (any reply = probe passes)
+PROBE_COUNT=2
+
+# Handshake younger than this = tunnel is alive (skip destructive restart)
+HANDSHAKE_FRESH=120
+
 # Your VPN internal IP (from VPN provider)
 # IMPORTANT: This must match the Address from your provider's WireGuard config.
 # A mismatch causes the watchdog to crash-loop — the tunnel comes up but
@@ -739,8 +749,8 @@ VPN_IP="CHANGE_ME"
 LAN_IFACE="br-lan"
 
 # Seconds to wait after restart before checking connectivity
-# WireGuard keepalive is typically 25s — allow time for handshake
-RESTART_SETTLE_TIME=5
+# Must be long enough for WireGuard handshake on high-latency links
+RESTART_SETTLE_TIME=12
 
 # Seconds to back off after all servers have been tried and failed
 EXHAUSTION_BACKOFF=300
@@ -754,21 +764,24 @@ AWG_PROFILE="basic"
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `CHECK_INTERVAL` | 30 | Seconds between checks |
-| `FAIL_THRESHOLD` | 3 | Failures before restart |
+| `FAIL_THRESHOLD` | 3 | Failures before recovery gates |
 | `FAILBACK_THRESHOLD` | 10 | Successes before trying primary again |
-| `RESTART_SETTLE_TIME` | 5 | Wait after restart for handshake |
+| `PROBE_TIMEOUT` | 5 | Seconds to wait for each ping reply |
+| `PROBE_COUNT` | 2 | Ping packets per probe target |
+| `HANDSHAKE_FRESH` | 120 | Handshake age threshold (seconds) |
+| `RESTART_SETTLE_TIME` | 12 | Wait after restart for handshake |
 | `EXHAUSTION_BACKOFF` | 300 | Cooldown after all servers fail |
-| Detection time | 90s | CHECK_INTERVAL × FAIL_THRESHOLD |
+| Detection time | ~90s | CHECK_INTERVAL × FAIL_THRESHOLD |
 
-### Failover Behavior
+### Recovery Behavior (3-Gate System)
 
-The watchdog uses a progressive restart strategy:
+The watchdog uses a gated recovery strategy to avoid unnecessary restarts:
 
-1. **First failure**: Restart tunnel on the **same server** (handles transient issues)
-2. **Repeated failures**: Cycle to the **next server** in `servers.conf`
-3. **All servers exhausted**: Back off for `EXHAUSTION_BACKOFF` seconds before retrying
+1. **Gate 1 — WAN check**: Pings WAN gateway. If unreachable, it's an ISP issue — restarting VPN is pointless, so the watchdog waits.
+2. **Gate 2 — Handshake check**: If the WireGuard handshake is < `HANDSHAKE_FRESH` seconds old, the tunnel is cryptographically alive. The watchdog attempts a **soft bounce** (forces traffic through the tunnel to trigger re-handshake) without tearing down the interface.
+3. **Gate 3 — Full restart**: Only reached when the tunnel is genuinely dead. First attempt restarts on the **same server**. Subsequent failures cycle to the **next server** in `servers.conf`. After all servers are exhausted, backs off for `EXHAUSTION_BACKOFF` seconds.
 
-This avoids unnecessary failover for brief connectivity blips while still recovering from server outages.
+This prevents false restarts from transient ISP jitter on high-latency links (common with CGNAT, LTE, satellite). The soft bounce recovers most "failures" without disrupting connected devices.
 
 ### Command Name
 

@@ -764,9 +764,12 @@ Guidelines:
 - Get server IPs by resolving hostnames (not the hostname itself!)
 - See `servers.conf.example` for full documentation and examples
 
-**Failover behavior:**
-- Monitors connectivity by pinging through tunnel (2/3 probes must pass)
-- After 3 consecutive failures → restarts tunnel on **same server** first
+**Recovery behavior (3-gate system):**
+- Monitors connectivity by pinging through tunnel (2 packets × 5s timeout, 2/3 probes must pass)
+- After 3 consecutive failures, runs recovery gates before restarting:
+  - **Gate 1 — WAN check:** Pings WAN gateway. If unreachable → ISP issue, skip VPN restart
+  - **Gate 2 — Handshake check:** If handshake < 120s old → tunnel is alive, attempt soft bounce (re-handshake without teardown)
+  - **Gate 3 — Full restart:** Tears down and rebuilds tunnel on **same server** first
 - If same-server restart fails → cycles to **next server** in list
 - After all servers exhausted → backs off 5 minutes before retrying
 - After 10 successful checks on backup → attempts failback to primary

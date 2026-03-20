@@ -5,6 +5,9 @@
 #
 # Advanced watchdog that:
 # - Monitors VPN tunnel health
+# - Differentiates ISP outage from VPN failure (WAN gateway pre-check)
+# - Checks WireGuard handshake freshness before restarting
+# - Attempts soft bounce (re-handshake) before destructive restart
 # - Fails over to backup servers when primary is down
 # - Tries same server first, then cycles on repeated failures
 # - Backs off after exhausting all servers
@@ -53,6 +56,21 @@ PROBE_TARGETS="1.1.1.1 8.8.8.8 9.9.9.9"
 # Minimum successful probes (out of total PROBE_TARGETS)
 MIN_PROBES=2
 
+# Seconds to wait for each probe ping reply
+# On high-latency links (VPN RTT >150ms), 3s may cause false failures.
+# Formula: set this to at least (VPN_RTT_ms / 1000) + 3
+PROBE_TIMEOUT=5
+
+# Number of ping packets per probe (any reply = probe passes)
+# Single-packet probes are binary pass/fail — no tolerance for jitter.
+# 2 packets gives resilience against single dropped packets.
+PROBE_COUNT=2
+
+# Seconds — handshake younger than this means tunnel is cryptographically alive.
+# WireGuard re-handshakes every 2 minutes under traffic, so 120s is a safe threshold.
+# If handshake is fresh but probes fail, the issue is likely transient (ISP jitter).
+HANDSHAKE_FRESH=120
+
 # Your VPN internal IP (assigned by VPN provider)
 # Example: 10.64.0.x for Mullvad, 10.x.x.x for IVPN
 # Get this from your provider's WireGuard config generator
@@ -62,8 +80,9 @@ VPN_IP="CHANGE_ME"
 LAN_IFACE="br-lan"
 
 # Seconds to wait after tunnel restart before checking connectivity
-# WireGuard keepalive is typically 25s — allow enough time for handshake
-RESTART_SETTLE_TIME=5
+# Must be long enough for WireGuard handshake on high-latency links.
+# Too short = false "restart FAILED" even when tunnel is actually up.
+RESTART_SETTLE_TIME=12
 
 # Seconds to back off after all servers have been tried and failed
 EXHAUSTION_BACKOFF=300
@@ -174,11 +193,12 @@ get_lan_subnet() {
 }
 
 # Check connectivity through VPN tunnel
+# Uses multi-packet probes with generous timeout for high-latency links
 check_connectivity() {
     local success=0
 
     for target in $PROBE_TARGETS; do
-        if ping -c 1 -W 3 -I awg0 "$target" > /dev/null 2>&1; then
+        if ping -c "$PROBE_COUNT" -W "$PROBE_TIMEOUT" -I awg0 "$target" > /dev/null 2>&1; then
             success=$((success + 1))
         fi
     done
@@ -190,6 +210,46 @@ check_connectivity() {
 check_endpoint() {
     local endpoint_ip=$1
     ping -c 1 -W 5 "$endpoint_ip" > /dev/null 2>&1
+}
+
+# Check if WAN gateway is reachable (differentiates ISP outage from VPN failure)
+# If WAN gateway is down, restarting the VPN tunnel is pointless.
+check_wan() {
+    local gw
+    gw=$(get_wan_gateway)
+    [ -z "$gw" ] && return 1
+    ping -c 2 -W 3 "$gw" > /dev/null 2>&1
+}
+
+# Check if WireGuard handshake is recent (tunnel alive even if probes fail)
+# A fresh handshake means the crypto session is active — the tunnel is up,
+# and probe failures are likely caused by transient upstream packet loss.
+check_handshake_fresh() {
+    local hs_epoch
+    hs_epoch=$($AWG_CMD show awg0 latest-handshakes 2>/dev/null | awk '{print $2}')
+    [ -z "$hs_epoch" ] && return 1
+    [ "$hs_epoch" = "0" ] && return 1
+    local now age
+    now=$(date +%s)
+    age=$((now - hs_epoch))
+    [ "$age" -lt "$HANDSHAKE_FRESH" ]
+}
+
+# Force traffic through tunnel to trigger re-handshake without teardown.
+# This is much less disruptive than a full restart — no route teardown,
+# no conntrack flush, no brief outage for all connected devices.
+soft_bounce() {
+    log "Soft bounce: forcing re-handshake without teardown"
+    local first_probe
+    first_probe=$(echo $PROBE_TARGETS | awk '{print $1}')
+    ping -c 2 -W 10 -I awg0 "$first_probe" > /dev/null 2>&1
+    sleep 5
+    if check_connectivity; then
+        log "Soft bounce recovered connectivity"
+        return 0
+    fi
+    log "Soft bounce did not recover connectivity"
+    return 1
 }
 
 # Switch to a specific server
@@ -392,7 +452,7 @@ success_count=0
 consecutive_restart_fails=0
 set_current_index 0
 
-log "AWG watchdog starting (check: ${CHECK_INTERVAL}s, failover after: ${FAIL_THRESHOLD} failures, failback after: ${FAILBACK_THRESHOLD} successes)"
+log "AWG watchdog starting (check: ${CHECK_INTERVAL}s, probe: ${PROBE_COUNT}x${PROBE_TIMEOUT}s, failover after: ${FAIL_THRESHOLD} failures, failback after: ${FAILBACK_THRESHOLD} successes)"
 
 # Main monitoring loop
 while true; do
@@ -412,37 +472,67 @@ while true; do
             try_failback
             success_count=0
         fi
-    else
-        # Connectivity check failed
-        fail_count=$((fail_count + 1))
-        success_count=0
-        log "Connectivity check failed ($fail_count/$FAIL_THRESHOLD)"
+        continue
+    fi
 
-        if [ $fail_count -ge $FAIL_THRESHOLD ]; then
-            # First attempt: try restarting on same server
-            # (handles transient issues without unnecessary failover)
-            # Subsequent attempts: cycle to next server
-            if [ $consecutive_restart_fails -eq 0 ]; then
-                restart_current
-            else
-                do_failover
-            fi
+    # Connectivity check failed
+    fail_count=$((fail_count + 1))
+    success_count=0
+    log "Connectivity check failed ($fail_count/$FAIL_THRESHOLD)"
 
-            if ! check_connectivity; then
-                consecutive_restart_fails=$((consecutive_restart_fails + 1))
-                log "Restart failed, consecutive failures: $consecutive_restart_fails"
+    if [ $fail_count -lt $FAIL_THRESHOLD ]; then
+        continue
+    fi
 
-                # After trying all servers, back off before retrying
-                if [ $consecutive_restart_fails -ge "$SERVER_COUNT" ]; then
-                    log "All servers exhausted, backing off ${EXHAUSTION_BACKOFF}s before retry cycle"
-                    sleep $EXHAUSTION_BACKOFF
-                    consecutive_restart_fails=0
-                fi
-            else
-                consecutive_restart_fails=0
-            fi
+    # Hit threshold — begin recovery gates
+    fail_count=0
 
-            fail_count=0
+    # Gate 1: Is WAN itself reachable?
+    # If the ISP/WAN link is down, restarting the VPN is pointless.
+    if ! check_wan; then
+        log "WAN gateway unreachable — ISP issue, not VPN. Skipping restart."
+        continue
+    fi
+
+    # Gate 2: Is the tunnel handshake still fresh?
+    # A recent handshake means the crypto session is alive — probes failed
+    # due to transient packet loss, not a dead tunnel. Try a soft bounce
+    # (force re-handshake) instead of tearing everything down.
+    if check_handshake_fresh; then
+        if soft_bounce; then
+            consecutive_restart_fails=0
+            continue
         fi
+        log "Handshake fresh but soft bounce failed — proceeding to full restart"
+    else
+        log "Handshake stale — proceeding to full restart"
+    fi
+
+    # Gate 3: Full restart
+    # First attempt: restart on same server (handles transient issues)
+    # Subsequent attempts: cycle to next server (handles server-level failures)
+    if [ $consecutive_restart_fails -eq 0 ]; then
+        restart_current
+    else
+        do_failover
+    fi
+    restart_result=$?
+
+    # Use the restart function's return value directly.
+    # Do NOT run check_connectivity again here — the restart functions
+    # already verify connectivity internally. A second check races against
+    # network stabilization and causes false "restart failed" reports.
+    if [ $restart_result -ne 0 ]; then
+        consecutive_restart_fails=$((consecutive_restart_fails + 1))
+        log "Restart failed, consecutive failures: $consecutive_restart_fails"
+
+        # After trying all servers, back off before retrying
+        if [ $consecutive_restart_fails -ge "$SERVER_COUNT" ]; then
+            log "All servers exhausted, backing off ${EXHAUSTION_BACKOFF}s before retry cycle"
+            sleep $EXHAUSTION_BACKOFF
+            consecutive_restart_fails=0
+        fi
+    else
+        consecutive_restart_fails=0
     fi
 done

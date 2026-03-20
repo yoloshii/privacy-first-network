@@ -166,8 +166,10 @@ Forwarding Rules:
 A background script that monitors tunnel health and performs recovery.
 
 **Features:**
-- Checks connectivity every 30 seconds
-- Restarts tunnel after 3 consecutive failures
+- Checks connectivity every 30 seconds (2 packets × 5s timeout per probe)
+- 3-gate recovery: WAN pre-check → handshake freshness → soft bounce → full restart
+- Differentiates ISP outage from VPN failure (avoids pointless restarts)
+- Multi-server failover with automatic failback to primary
 - Adds correct routes after tunnel restart
 - Logs all events for troubleshooting
 
