@@ -22,7 +22,7 @@
 
 [Unit]
 Description=AmneziaWG Watchdog - VPN Tunnel Monitor and Auto-Recovery
-Documentation=https://github.com/yoloshii/net-freedom-privacy
+Documentation=https://github.com/yoloshii/privacy-first-network
 After=network-online.target
 Wants=network-online.target
 

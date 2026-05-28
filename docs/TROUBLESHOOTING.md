@@ -208,6 +208,61 @@ nslookup google.com VPN_PROVIDER_DNS_IP
    # Check VPN first
    ```
 
+### AdGuard Hung Silently (No Logs, All DNS Broken)
+
+**Symptoms:**
+- VPN tunnel is healthy (handshake fresh, transfer counters moving)
+- Every device on the network loses internet at the same moment
+- AdGuard journal stops emitting entries entirely
+- ISP confirms the WAN side is fine
+- Only a full reboot of the AdGuard host restores DNS
+
+**Why it happens:**
+The pattern observed in production: AdGuard's local PTR lookups time out against the router's dnsmasq, dnsproxy goroutines pile up waiting on multi-second i/o timeouts, the service drifts into an unresponsive state with no error logged, and DNS resolution hangs for every client. Because AdGuard is the only resolver clients reach (DHCP option 6), the entire network appears offline even though packets still flow.
+
+**Diagnosis:**
+
+```bash
+# Did AdGuard stop logging entirely while the host stayed up?
+journalctl -u AdGuardHome --since '1 hour ago' | tail
+# A multi-hour gap with no entries is the smoking gun.
+
+# Is the process still around?
+ps -ef | grep -i AdGuardHome    # bare metal
+docker ps | grep adguard         # docker
+pct list | grep 101              # lxc / proxmox
+
+# Can you resolve through AdGuard at all?
+dig @192.168.1.5 +tries=1 +time=5 cloudflare.com
+```
+
+**Solutions:**
+
+1. **Immediate fix:** restart the AdGuard deployment.
+
+   ```bash
+   # Bare metal (systemd)
+   sudo systemctl restart AdGuardHome
+
+   # Docker
+   docker restart adguardhome
+
+   # LXC (Proxmox)
+   sudo pct restart 101
+   ```
+
+2. **Prevent recurrence:** install the DNS health watchdog (`adguard/adguard-watchdog.sh` + `adguard/adguard-watchdog.service`). It probes AdGuard every 60 seconds via `dig` and restarts the deployment after 3 consecutive failures — typically recovering within ~3 minutes instead of "whenever a human notices."
+
+3. **Add persistent journaling** (if not already enabled) so the next incident leaves evidence:
+
+   ```bash
+   sudo mkdir -p /var/log/journal
+   sudo sed -i 's/^#*Storage=.*/Storage=persistent/' /etc/systemd/journald.conf
+   sudo systemctl restart systemd-journald
+   ```
+
+4. **Consider a monthly preventive reboot** for the AdGuard host (`scripts/monthly-reboot.cron`). Long uptimes (60+ days) consistently correlate with this hang in field reports.
+
 ### Ads Still Showing
 
 **Symptoms:**

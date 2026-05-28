@@ -796,12 +796,75 @@ The watchdog and hotplug scripts auto-detect which command is available.
 
 ### Log Rotation
 
+Use the included script (`scripts/rotate-watchdog-log.sh`) which rotates only when the log exceeds `MAX_SIZE` and gzips old copies:
+
+```bash
+sudo cp scripts/rotate-watchdog-log.sh /etc/backup/rotate-watchdog-log.sh
+sudo chmod +x /etc/backup/rotate-watchdog-log.sh
+```
+
 Add to cron (`/etc/crontabs/root`):
 
 ```
-# Rotate watchdog log daily at 4am, keep 7 days
-0 4 * * * /usr/bin/find /var/log -name 'awg-watchdog.log.*' -mtime +7 -delete; /bin/mv /var/log/awg-watchdog.log /var/log/awg-watchdog.log.$(date +\%Y\%m\%d)
+0 4 * * * /etc/backup/rotate-watchdog-log.sh
 ```
+
+### Log Persistence (OpenWrt)
+
+On OpenWrt, `/var/log` is a symlink to `/tmp/log` (tmpfs) — **every reboot wipes the watchdog log**. This makes post-incident analysis impossible.
+
+The bundled `awg-watchdog.sh` writes to `/root/awg-watchdog.log` instead, which is on the persistent overlay. If you've customised the script, set:
+
+```sh
+LOG_FILE="/root/awg-watchdog.log"
+```
+
+On Debian/Ubuntu/Pimox hosts (running the systemd `awg-watchdog.service`), `/var/log` is already persistent — no change needed.
+
+---
+
+## DNS Health Watchdog (Optional)
+
+If you run AdGuard Home as a separate container or service, the AmneziaWG watchdog only monitors the VPN tunnel — it has no visibility into DNS health. AdGuard can hang silently for hours while the VPN looks fine, breaking DNS for every device on the network.
+
+The included `adguard/adguard-watchdog.sh` runs on the AdGuard **host** (not inside the container), probes AdGuard via `dig`, and restarts the deployment on persistent failure. Supports Docker, LXC (Proxmox `pct`), and systemd. See `adguard/adguard-watchdog.service` for the systemd unit.
+
+Configure the deployment type and target in the script header:
+
+```bash
+DEPLOYMENT_TYPE="lxc"      # docker | lxc | systemd
+ADGUARD_TARGET="101"       # container name / CTID / service name
+ADGUARD_IP="192.168.1.5"   # where AdGuard listens
+```
+
+---
+
+## Persistent Systemd Journal
+
+For hosts running systemd (Debian, Ubuntu, Proxmox), persistent journaling preserves logs across reboots — critical for diagnosing intermittent outages.
+
+```bash
+sudo mkdir -p /var/log/journal
+sudo sed -i 's/^#*Storage=.*/Storage=persistent/' /etc/systemd/journald.conf
+echo 'SystemMaxUse=200M' | sudo tee -a /etc/systemd/journald.conf
+sudo systemctl restart systemd-journald
+```
+
+Verify with `journalctl --list-boots` after one reboot — you should see at least two entries.
+
+---
+
+## Monthly Preventive Reboot
+
+Long uptimes (60+ days) on routers and AdGuard hosts accumulate degraded state. A monthly reboot during off-peak hours prevents this with a 2-3 minute outage. Use `scripts/monthly-reboot.cron`:
+
+```bash
+sudo cp scripts/monthly-reboot.cron /etc/cron.d/monthly-reboot
+sudo chmod 644 /etc/cron.d/monthly-reboot
+sudo systemctl restart cron
+```
+
+This fires the first Sunday of each month at 04:00 local time.
 
 ---
 

@@ -433,12 +433,15 @@ Use these example configs, substituting user-specific values:
 | AdGuard Home (generic) | `adguard/AdGuardHome.yaml.example` | ✓ | Any upstream DNS |
 | AdGuard Home (Mullvad) | `adguard/mullvad-AdGuardHome.yaml.example` | ✓ | Mullvad DoH |
 | Systemd service (AdGuard) | `scripts/adguardhome.service` | ✓ | Linux systemd |
+| **DNS health watchdog (script)** | `adguard/adguard-watchdog.sh` | ✓ | Detects + restarts hung AdGuard (docker/lxc/systemd) |
+| **DNS health watchdog (service)** | `adguard/adguard-watchdog.service` | ✓ | Systemd unit for the above |
 | BanIP config | `openwrt/banip/banip.example` | | Threat intelligence |
 | **Utility Scripts** | | | |
 | Firewall setup | `scripts/setup-firewall.sh` | ✓ | One-command VPN zone setup |
 | IPv6 disable | `scripts/disable-ipv6.sh` | ✓ | Complete IPv6 hardening |
 | Config backup | `scripts/auto-backup.sh` | ✓ | Daily /etc/config backup |
-| Log rotation | `scripts/rotate-watchdog-log.sh` | ✓ | Watchdog log rotation |
+| Log rotation | `scripts/rotate-watchdog-log.sh` | ✓ | Watchdog log rotation (matches /root path) |
+| Monthly reboot cron | `scripts/monthly-reboot.cron` | ✓ | First-Sunday-of-month preventive reboot |
 | **Docker (Option C)** | | | |
 | Dockerfile | `docker/Dockerfile` | ✓ | Multi-stage, builds amneziawg-go |
 | Compose file | `docker/docker-compose.yml` | ✓ | macvlan + AdGuard sidecar |
@@ -1554,6 +1557,66 @@ which awg amneziawg 2>/dev/null
 
 # The watchdog and hotplug scripts auto-detect this.
 # When running manual commands, use whichever is installed.
+```
+
+### 18. AdGuard Hangs Silently — VPN Looks Fine, DNS Dead
+
+**The Problem:** The AmneziaWG watchdog only monitors the VPN tunnel. AdGuard Home can drift into an unresponsive state (silent service freeze, goroutine pile-up on upstream timeouts) while the VPN looks perfectly healthy. Every device on the network loses internet because DNS hangs, but no obvious recovery trigger fires. Field reports correlate this with 60+ day uptimes on the AdGuard host.
+
+**Detection:** Multi-hour gap in AdGuard's `journalctl` output while the host stays up; clients can reach `1.1.1.1` by IP but no hostnames resolve.
+
+**Agent Strategy:**
+```bash
+# Install the DNS health watchdog on the AdGuard HOST
+sudo cp adguard/adguard-watchdog.sh /usr/local/bin/
+sudo chmod +x /usr/local/bin/adguard-watchdog.sh
+
+# Edit DEPLOYMENT_TYPE (docker|lxc|systemd) and ADGUARD_TARGET in the script header
+
+sudo cp adguard/adguard-watchdog.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now adguard-watchdog
+
+# Verify
+systemctl status adguard-watchdog
+tail -f /var/log/adguard-watchdog.log
+```
+
+The script probes AdGuard via `dig` every 60s. After 3 consecutive failures, it restarts the deployment — recovery takes ~3 minutes instead of "whenever a human notices."
+
+### 19. Watchdog Log Wiped on Every Reboot (OpenWrt)
+
+**The Problem:** On OpenWrt, `/var/log` is a symlink to `/tmp/log` (tmpfs). After any reboot — including a watchdog-triggered VPN restart that didn't quite go to plan — the entire `awg-watchdog.log` history is gone. Post-incident diagnosis is impossible.
+
+**Agent Strategy:** Verify `awg-watchdog.sh` writes to `/root` (persistent ext4):
+
+```bash
+grep ^LOG_FILE /etc/awg-watchdog.sh
+# Should show: LOG_FILE="/root/awg-watchdog.log"
+# If it shows /var/log, edit it and restart the watchdog
+```
+
+On Debian/Ubuntu/Pimox hosts, `/var/log` is already persistent — no change needed.
+
+### 20. No Persistent systemd Journal (Pimox / Some Debian Builds)
+
+**The Problem:** Some installs ship with `Storage=volatile` in `/etc/systemd/journald.conf`. Reboots wipe the entire journal. Post-incident diagnosis is reduced to "well, it broke."
+
+**Detection:**
+```bash
+journalctl --list-boots
+# Only shows the current boot? Journal is volatile.
+```
+
+**Agent Strategy:**
+```bash
+sudo mkdir -p /var/log/journal
+sudo sed -i 's/^#*Storage=.*/Storage=persistent/' /etc/systemd/journald.conf
+# Optional but recommended: bound disk usage
+echo 'SystemMaxUse=200M' | sudo tee -a /etc/systemd/journald.conf
+sudo systemctl restart systemd-journald
+journalctl --flush
+ls /var/log/journal/   # should now contain a machine-id directory
 ```
 
 ---

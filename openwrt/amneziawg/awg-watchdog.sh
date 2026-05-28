@@ -36,7 +36,12 @@ SERVERS_FILE="/etc/amneziawg/servers.conf"
 CONFIG_DIR="/etc/amneziawg"
 
 # Log file location
-LOG_FILE="/var/log/awg-watchdog.log"
+# IMPORTANT on OpenWrt: /var/log is a symlink to /tmp/log (tmpfs), so logs
+# written there are LOST on every reboot. We use /root/awg-watchdog.log
+# because /root is on the persistent overlay filesystem, which means the
+# log survives reboots and is available for post-incident analysis.
+# On non-OpenWrt Linux (Debian, Ubuntu), /var/log/awg-watchdog.log is fine.
+LOG_FILE="/root/awg-watchdog.log"
 
 # Current server tracking
 STATE_FILE="/tmp/awg_current_server"

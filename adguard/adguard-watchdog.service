@@ -1,0 +1,44 @@
+# =============================================================================
+# AdGuard Home DNS Health Watchdog - Systemd Service
+# =============================================================================
+#
+# For Linux hosts running AdGuard Home (any deployment: Docker, LXC, systemd).
+#
+# Installation:
+#   1. Copy adguard-watchdog.sh to /usr/local/bin/adguard-watchdog.sh
+#   2. chmod +x /usr/local/bin/adguard-watchdog.sh
+#   3. Edit CONFIG section in the script (DEPLOYMENT_TYPE, ADGUARD_TARGET, etc.)
+#   4. Copy this file to /etc/systemd/system/adguard-watchdog.service
+#   5. systemctl daemon-reload
+#   6. systemctl enable adguard-watchdog
+#   7. systemctl start adguard-watchdog
+#
+# Commands:
+#   systemctl status adguard-watchdog    # Check status
+#   journalctl -u adguard-watchdog -f    # Follow logs
+#   tail -f /var/log/adguard-watchdog.log # Persistent log
+#
+# =============================================================================
+
+[Unit]
+Description=AdGuard Home DNS Health Watchdog
+Documentation=https://github.com/yoloshii/privacy-first-network
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/adguard-watchdog.sh
+Restart=always
+RestartSec=30
+
+# Give AdGuard ample time to start after a host boot before first probe
+ExecStartPre=/bin/sleep 60
+
+# Logging
+StandardOutput=null
+StandardError=null
+SyslogIdentifier=adguard-watchdog
+
+[Install]
+WantedBy=multi-user.target

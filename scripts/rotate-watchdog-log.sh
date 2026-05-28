@@ -13,7 +13,10 @@
 #
 # =============================================================================
 
-LOG="/var/log/awg-watchdog.log"
+# Path matches the watchdog's LOG_FILE setting.
+# On OpenWrt, use /root (persistent) — /var/log is tmpfs and gets wiped on reboot.
+# On Debian/Ubuntu, /var/log/awg-watchdog.log is fine since /var/log is persistent.
+LOG="/root/awg-watchdog.log"
 MAX_SIZE=1048576  # 1MB in bytes
 MAX_ROTATIONS=4
 
