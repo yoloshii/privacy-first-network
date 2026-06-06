@@ -224,13 +224,15 @@ AWG_PROFILE="quic"  # or dns, sip, stealth
 # Create server list for watchdog failover
 cat > /etc/amneziawg/servers.conf << 'EOF'
 # Format: NAME  ENDPOINT_IP  PORT  PUBLIC_KEY
-# Use "-" for public key if all servers share the same key (same provider/cluster)
-# Get server IPs from your VPN provider's server list
+# Each server has its OWN public key (Mullvad keys are unique per server, even same-city) —
+# specify a real key for every server. "-" only reuses the base awg0.conf key; do NOT use it
+# for failover servers (the endpoint switches but the key doesn't, so the handshake silently
+# fails). Get each server's IP + key from your provider.
 
-# Example (Mullvad Los Angeles cluster):
-# us-lax-wg-001   198.51.100.10   51820   -
-# us-lax-wg-002   198.51.100.12   51820   -
-# us-lax-wg-003   198.51.100.14   51820   -
+# Example (each server its own key; RFC 5737 doc IPs — replace with real values):
+# us-lax-wg-001   198.51.100.10   51820   LAX_001_PUBLIC_KEY
+# us-sjc-wg-001   198.51.100.12   51820   SJC_001_PUBLIC_KEY
+# us-sea-wg-001   198.51.100.14   51820   SEA_001_PUBLIC_KEY
 
 # Add your servers here:
 EOF
@@ -239,7 +241,7 @@ EOF
 vi /etc/amneziawg/servers.conf
 ```
 
-> **Tip:** Use 3-5 servers from the same region for failover. The watchdog tries the same server first on failure, then cycles through the list.
+> **Tip:** Use 3-5 servers, ideally spread across a few cities for resilience (a single-city/provider outage still has a path out). The watchdog tries the same server first on failure, then cycles through the list. Give each server its **own** public key in `servers.conf` — see `openwrt/amneziawg/servers.conf.example`.
 
 **Copy startup scripts:**
 

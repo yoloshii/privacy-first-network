@@ -172,7 +172,9 @@ load_servers() {
 # Get server info by index (0-based)
 get_server() {
     local idx=$1
-    grep -v '^#' "$SERVERS_FILE" | grep -v '^$' | sed -n "$((idx + 1))p"
+    # tr -d '\r' guards against a CRLF-saved servers.conf leaving a trailing CR on the last
+    # field (the public key), which would corrupt the key when written into the runtime config.
+    grep -v '^#' "$SERVERS_FILE" | grep -v '^$' | sed -n "$((idx + 1))p" | tr -d '\r'
 }
 
 # Get current server index
@@ -253,6 +255,14 @@ get_wan_connected() {
     ip -4 route show dev "$WAN_IFACE" scope link 2>/dev/null | awk 'NR==1 {print $1}'
 }
 
+# True (0) if a policy rule "from <ip> lookup <table>" already exists. Field-exact match
+# (not a substring grep) so e.g. table 100 is never confused with a same-prefix id like 1000,
+# and the dotted IP is compared literally rather than as a regex. Makes rule (re)adds idempotent.
+policy_rule_exists() {
+    ip rule show 2>/dev/null | awk -v ip="$1" -v t="$2" \
+        '$2=="from" && $3==ip && $4=="lookup" && $5==t {found=1; exit} END {exit(found?0:1)}'
+}
+
 # Ensure the raw-WAN path (bypass table) is current and selectable by WAN source IP.
 # Refreshes the bypass table from live WAN state and (re)installs a WAN-source policy
 # rule, clearing any stale rule left by a previous (e.g. CGNAT) address change.
@@ -270,8 +280,9 @@ ensure_raw_wan_path() {
         [ -n "$cur" ] && [ "$cur" != "$wan_ip" ] && \
             ip rule del from "$cur" lookup "$BYPASS_TABLE" priority "$RAW_WAN_RULE_PRIORITY" 2>/dev/null
     done
-    # Idempotent add (grep-guard; do not rely on iproute2 duplicate-rule behavior)
-    ip rule show 2>/dev/null | grep -q "from $wan_ip lookup $BYPASS_TABLE" || \
+    # Idempotent add (field-exact existence check; iproute2 'add' is not idempotent, and a
+    # substring grep would treat table 1000 as containing table 100).
+    policy_rule_exists "$wan_ip" "$BYPASS_TABLE" || \
         ip rule add from "$wan_ip" lookup "$BYPASS_TABLE" priority "$RAW_WAN_RULE_PRIORITY" 2>/dev/null
     return 0
 }
@@ -382,10 +393,15 @@ switch_server() {
     # Copy base config and update endpoint
     sed "s/^Endpoint=.*/Endpoint=$endpoint:$port/" "$base_config" > "$runtime_config"
 
-    # If public key differs, update it too (for multi-city failover)
-    # Use "-" in servers.conf to keep base config's key (same-city servers)
+    # Each server has its OWN public key — Mullvad (and most providers) assign a UNIQUE key
+    # per server, even within the same city — so update it from servers.conf column 4.
+    # CRITICAL: base64 keys contain '/', '+' and '=' but never '|', so use '|' as the sed
+    # delimiter. (A '/' delimiter breaks on every key that contains '/', which silently makes
+    # per-server failover fail to hand off.) "-" means "keep the base config's key" and is only
+    # correct for the one server whose key is already in awg0.conf — specify an explicit key for
+    # every other server.
     if [ -n "$pubkey" ] && [ "$pubkey" != "-" ]; then
-        sed -i "s/^PublicKey=.*/PublicKey=$pubkey/" "$runtime_config"
+        sed -i "s|^PublicKey=.*|PublicKey=$pubkey|" "$runtime_config"
     fi
 
     # 3b. Apply obfuscation profile (AmneziaWG 1.5)

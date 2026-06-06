@@ -748,22 +748,23 @@ Read `awg-watchdog.sh` — it's well-commented and explains all configuration op
 # First server = primary (watchdog failsback to it)
 
 # PUBLIC KEY RULES:
-# - First server: Specify the actual public key from awg0.conf
-# - Same-city servers: Use "-" (inherits from base config)
-# - Different cities: MUST specify that city's public key!
+# - EVERY server has its OWN public key — unique per server, even within the same city.
+# - Specify the real public key (column 4) for EVERY server.
+# - "-" only reuses the base awg0.conf key (correct for that one server, WRONG for any other:
+#   the watchdog switches the endpoint but keeps the wrong key -> handshake silently fails).
 
-# Example: All same city (LAX cluster) - can use "-" after first
-us-lax-wg-001   203.0.113.10    51820   AbCdEfGh...your_key_here
-us-lax-wg-002   203.0.113.11    51820   -
-us-lax-wg-003   203.0.113.12    51820   -
+# Example: each server its own key (these are DISTINCT even within a city)
+us-lax-wg-001   203.0.113.10    51820   LAX_001_PUBLIC_KEY
+us-lax-wg-002   203.0.113.11    51820   LAX_002_PUBLIC_KEY
+us-sjc-wg-001   198.51.100.10   51820   SJC_001_PUBLIC_KEY
 
-# WRONG: Mixing cities with "-" will FAIL (different keys!)
-# us-sjc-wg-001   198.51.100.10   51820   -   # ✗ Different city, needs its own key!
+# WRONG: "-" on a failover server -> endpoint changes but key doesn't -> 0 bytes, no handshake
+# us-lax-wg-002   203.0.113.11    51820   -   # keeps wg-001's key, never connects
 ```
 
 Guidelines:
-- Add 3-5 servers from **same city/region** for simplest config
-- If mixing cities, get each city's public key from your VPN provider
+- Add 3-5 servers, ideally spread across a few **cities** for resilience (a single-city/provider outage still has a path out)
+- Get each server's **own** public key from your provider (Mullvad: `https://api.mullvad.net/www/relays/all/`)
 - Get server IPs by resolving hostnames (not the hostname itself!)
 - See `servers.conf.example` for full documentation and examples
 
@@ -1633,6 +1634,20 @@ ping -c2 -I "$WAN_IP" 1.1.1.1   # raw WAN — DOWN = ISP upstream outage
 ```
 
 **Agent Strategy:** Use the bundled `awg-watchdog.sh`, which adds **Gate 1b** (`check_raw_wan_public`) after the WAN gateway check. It probes `PROBE_TARGETS` over the raw WAN path — source-bound to the WAN IP and routed via the bypass table with a `from <wan_ip> lookup <BYPASS_TABLE> priority RAW_WAN_RULE_PRIORITY` rule — so it tests real internet reachability past the gateway, not the tunnel. When the gateway is up but raw WAN is down, it logs `ISP upstream/CGNAT outage` and skips the restart. Set `WAN_IFACE` (uplink interface, commonly `eth0`) and keep `RAW_WAN_RULE_PRIORITY` (90) above your bypass-device rule priority (100). The watchdog auto-recovers when the ISP path returns; if these recur, escalate to the ISP or request a public IP (off CGNAT).
+
+### 22. Failover Silently Never Hands Off (Per-Server Keys)
+
+**The Problem:** Every WireGuard server has its OWN public key — with Mullvad this is true even for servers in the same city (`us-lax-wg-001` and `us-lax-wg-002` have different keys). If `servers.conf` lists failover servers with `-` (meaning "reuse the base key") under the old "same cluster = same key" assumption, the watchdog switches the *endpoint* on failover but keeps the *wrong key*, so the handshake never completes. The tunnel goes dark — `awg show awg0` shows `0 B received` and no `latest handshake` — while WAN and raw-WAN probes pass (so it's not the ISP). Decommissioned server IPs (providers retire servers over time) compound it: the list looks like failover but never actually fails over.
+
+**Detection:**
+```bash
+awg show awg0 | grep -E "endpoint|latest handshake|transfer"   # 0 B received + no handshake
+grep -E "^(Endpoint|PublicKey)=" /etc/amneziawg/awg0.conf      # is the key right for this endpoint?
+# Cross-check the endpoint is still a live server (empty match = decommissioned):
+curl -s https://api.mullvad.net/www/relays/all/ | grep -o '"<endpoint-ip>"'
+```
+
+**Agent Strategy:** In `servers.conf`, give EVERY server its own public key in column 4 — never `-` for a failover server. The bundled `switch_server` rewrites both `Endpoint=` and `PublicKey=` from `servers.conf` using a `|` sed delimiter (base64 keys contain `/`, which would break a `/`-delimited sed and silently leave the wrong key). Spread the pool across a few cities for resilience, refresh it periodically against the provider's live list (a decommissioned entry just costs one wasted rebuild during a sweep), and save the file with LF line endings (a CRLF save corrupts the last column — the key). The client private key is account-wide, so only each server's endpoint + its own key are needed.
 
 ---
 

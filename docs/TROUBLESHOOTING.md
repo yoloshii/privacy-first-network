@@ -171,6 +171,28 @@ If the gateway pings but raw-WAN 1.1.1.1 fails, it's an **ISP-side outage** — 
 
 ---
 
+### VPN Down After Failover, or "0 B received" on One Server (Per-Server Keys)
+
+**Symptoms:**
+- A VPN device is WiFi-connected and DNS resolves, but nothing loads
+- `awg show awg0` shows `transfer: 0 B received` and NO `latest handshake`
+- WAN **and** raw WAN both reach the internet (so it's NOT the ISP — contrast the section above)
+- Often appears after a server failover, or after the provider retires/rotates a server
+
+**Cause:** Each WireGuard server has its OWN public key — with Mullvad this holds even within a city. If `servers.conf` uses `-` (reuse the base key) for a failover server, the watchdog switches the endpoint but keeps the wrong key, so the handshake never completes. A decommissioned server IP does the same (the endpoint is dead). Either way the tunnel sits with 0 bytes received while everything upstream looks fine.
+
+**Diagnosis:**
+```bash
+awg show awg0 | grep -E "endpoint|latest handshake|transfer"   # 0 B received, no handshake
+grep -E "^(Endpoint|PublicKey)=" /etc/amneziawg/awg0.conf      # right key for THIS endpoint?
+# Is the endpoint still a live server? (empty result = decommissioned — pick another)
+curl -s https://api.mullvad.net/www/relays/all/ | grep -o '"<endpoint-ip>"'
+```
+
+**Solution:** Give every server in `servers.conf` its OWN public key in column 4 (never `-` for a failover server); the bundled `switch_server` rewrites both `Endpoint=` and `PublicKey=` per server. Refresh the list against your provider's live server list and drop decommissioned IPs. Save `servers.conf` with LF (not CRLF) line endings — a trailing CR corrupts the last column (the key). Manual recovery: set `Endpoint`/`PublicKey` to any active server, then `ip link del awg0; ACTION=ifup INTERFACE=wan /etc/hotplug.d/iface/99-awg`.
+
+---
+
 ## DNS Issues
 
 ### DNS Not Resolving
