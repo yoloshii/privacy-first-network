@@ -6,6 +6,8 @@
 # Advanced watchdog that:
 # - Monitors VPN tunnel health
 # - Differentiates ISP outage from VPN failure (WAN gateway pre-check)
+# - Differentiates ISP-upstream/CGNAT outage from VPN failure (raw-WAN public probe,
+#   bypassing the tunnel — the gateway can stay pingable on CGNAT while internet is down)
 # - Checks WireGuard handshake freshness before restarting
 # - Attempts soft bounce (re-handshake) before destructive restart
 # - Fails over to backup servers when primary is down
@@ -83,6 +85,19 @@ VPN_IP="CHANGE_ME"
 
 # LAN bridge interface name (for bypass routing table)
 LAN_IFACE="br-lan"
+
+# WAN-facing interface (the physical/uplink interface, NOT the VPN tunnel).
+# Commonly eth0 on OpenWrt. Used for the raw-WAN reachability probe below.
+WAN_IFACE="eth0"
+
+# Bypass routing table number — must match the table your hotplug/rc.local bypass
+# rules use (table 100 in this repo's examples).
+BYPASS_TABLE="100"
+
+# Policy-rule priority for the raw-WAN probe's WAN-source rule. Lower number = higher
+# precedence. Keep it ABOVE your bypass-device rules (priority 100 in the examples) so
+# router-sourced probes select the bypass table, and below the main table (32766).
+RAW_WAN_RULE_PRIORITY=90
 
 # Seconds to wait after tunnel restart before checking connectivity
 # Must be long enough for WireGuard handshake on high-latency links.
@@ -226,6 +241,60 @@ check_wan() {
     ping -c 2 -W 3 "$gw" > /dev/null 2>&1
 }
 
+# Current WAN source address (used to force raw-WAN probes via the bypass table)
+get_wan_ip() {
+    ip -4 addr show dev "$WAN_IFACE" 2>/dev/null | awk '/inet / {sub(/\/.*/,"",$2); print $2; exit}'
+}
+
+# Detect the WAN connected (on-link) prefix dynamically. Avoids hard-coding a subnet —
+# important on CGNAT (RFC 6598, 100.64.0.0/10), where the ISP can hand a different
+# prefix on a new lease, leaving a stale on-link route in the bypass table.
+get_wan_connected() {
+    ip -4 route show dev "$WAN_IFACE" scope link 2>/dev/null | awk 'NR==1 {print $1}'
+}
+
+# Ensure the raw-WAN path (bypass table) is current and selectable by WAN source IP.
+# Refreshes the bypass table from live WAN state and (re)installs a WAN-source policy
+# rule, clearing any stale rule left by a previous (e.g. CGNAT) address change.
+# Uses 'ip route replace' only — never flushes the bypass table.
+ensure_raw_wan_path() {
+    local gw wan_ip connected cur
+    gw=$(get_wan_gateway)
+    wan_ip=$(get_wan_ip)
+    { [ -z "$gw" ] || [ -z "$wan_ip" ]; } && return 1
+    ip route replace default via "$gw" dev "$WAN_IFACE" table "$BYPASS_TABLE"
+    connected=$(get_wan_connected)
+    [ -n "$connected" ] && ip route replace "$connected" dev "$WAN_IFACE" table "$BYPASS_TABLE"
+    # Drop any stale WAN-source rule at our priority whose address no longer matches
+    ip rule show 2>/dev/null | awk -v pri="${RAW_WAN_RULE_PRIORITY}:" '$1==pri {print $3}' | while read -r cur; do
+        [ -n "$cur" ] && [ "$cur" != "$wan_ip" ] && \
+            ip rule del from "$cur" lookup "$BYPASS_TABLE" priority "$RAW_WAN_RULE_PRIORITY" 2>/dev/null
+    done
+    # Idempotent add (grep-guard; do not rely on iproute2 duplicate-rule behavior)
+    ip rule show 2>/dev/null | grep -q "from $wan_ip lookup $BYPASS_TABLE" || \
+        ip rule add from "$wan_ip" lookup "$BYPASS_TABLE" priority "$RAW_WAN_RULE_PRIORITY" 2>/dev/null
+    return 0
+}
+
+# Check if the public internet is reachable over the RAW WAN path (bypassing the tunnel).
+# This is the key signal that separates an ISP-upstream/CGNAT outage (gateway reachable
+# but internet dead) from a genuine VPN fault. check_wan() only pings the gateway, which
+# on CGNAT stays reachable even when upstream is down — so a gateway-only check is not
+# enough. Probes are source-bound to the WAN IP and routed via the bypass table, so they
+# test raw WAN, NOT the tunnel (unlike check_connectivity, which binds to awg0).
+check_raw_wan_public() {
+    local wan_ip success=0 target
+    ensure_raw_wan_path || return 1
+    wan_ip=$(get_wan_ip)
+    [ -z "$wan_ip" ] && return 1
+    for target in $PROBE_TARGETS; do
+        if ping -c "$PROBE_COUNT" -W "$PROBE_TIMEOUT" -I "$wan_ip" "$target" >/dev/null 2>&1; then
+            success=$((success + 1))
+        fi
+    done
+    [ "$success" -ge "$MIN_PROBES" ]
+}
+
 # Check if WireGuard handshake is recent (tunnel alive even if probes fail)
 # A fresh handshake means the crypto session is active — the tunnel is up,
 # and probe failures are likely caused by transient upstream packet loss.
@@ -339,11 +408,17 @@ switch_server() {
     # 6. Bring interface up
     ip link set up dev awg0
 
-    # 7. Add endpoint route via WAN gateway (prevents routing loop)
-    ip route replace "$endpoint" via "$gateway" dev eth0
+    # 7. Clean stale per-endpoint host routes (all servers), then route the active
+    # endpoint via the WAN gateway (prevents routing loop). The cleanup stops old
+    # endpoints from lingering via a changed gateway after failover.
+    local s_ep
+    grep -v '^#' "$SERVERS_FILE" | grep -v '^$' | awk '{print $2}' | while read -r s_ep; do
+        [ -n "$s_ep" ] && ip route del "$s_ep" 2>/dev/null
+    done
+    ip route replace "$endpoint" via "$gateway" dev "$WAN_IFACE"
 
     # 8. Maintain bypass routing table (table 100)
-    ip route replace default via "$gateway" dev eth0 table 100
+    ip route replace default via "$gateway" dev "$WAN_IFACE" table 100
 
     # 8b. Add LAN route to bypass table
     # Without this, bypass devices cannot reach other LAN devices
@@ -352,6 +427,12 @@ switch_server() {
     if [ -n "$lan_net" ]; then
         ip route replace "$lan_net" dev "$LAN_IFACE" table 100
     fi
+
+    # 8c. Add WAN connected prefix to bypass table (dynamic — CGNAT-safe, no hard-coded subnet).
+    # Ensures table 100 can resolve the gateway on-link for the raw-WAN probe and bypass devices.
+    local wan_connected
+    wan_connected=$(get_wan_connected)
+    [ -n "$wan_connected" ] && ip route replace "$wan_connected" dev "$WAN_IFACE" table 100
 
     # 9. Add VPN split routes (more specific than default, covers all IPv4)
     ip route replace 0.0.0.0/1 dev awg0
@@ -515,6 +596,17 @@ while true; do
     # If the ISP/WAN link is down, restarting the VPN is pointless.
     if ! check_wan; then
         log "WAN gateway unreachable — ISP issue, not VPN. Skipping restart."
+        consecutive_restart_fails=0
+        continue
+    fi
+
+    # Gate 1b: Is the public internet reachable over the RAW WAN path (bypassing the tunnel)?
+    # On CGNAT the gateway stays pingable during an upstream ISP outage, so check_wan alone
+    # can't tell "ISP upstream down" from "VPN broken" — and restarting the tunnel during an
+    # ISP outage just thrashes it. This probes past the gateway over raw WAN.
+    if ! check_raw_wan_public; then
+        log "WAN gateway reachable but public internet unreachable via raw WAN — ISP upstream/CGNAT outage, not VPN. Skipping restart."
+        consecutive_restart_fails=0
         continue
     fi
 

@@ -148,6 +148,27 @@ ip route
    # If low on memory, reduce AdGuard cache size
    ```
 
+### VPN Keeps Restarting During an Outage (ISP/CGNAT Upstream)
+
+**Symptoms:**
+- No internet, but the WAN gateway still pings
+- Watchdog log loops: `handshake stale → full restart → Tunnel restart FAILED`
+- Rebooting the router does NOT fix it; service returns only when the ISP recovers
+- Common on **CGNAT** WANs (RFC 6598, `100.64.0.0/10`), where the gateway is the ISP's edge
+
+**Cause:** The ISP's upstream path is down but the (CGNAT) gateway stays pingable. A gateway-only check can't tell this apart from a VPN fault, and the tunnel-path connectivity check only tests the VPN — so the watchdog thrashes the tunnel pointlessly.
+
+**Diagnosis:**
+```bash
+WAN_IP=$(ip -4 addr show dev eth0 | awk '/inet / {sub(/\/.*/,"",$2); print $2; exit}')
+GW=$(ip route show dev eth0 | awk '/default/{print $3; exit}')
+ping -c2 "$GW"                       # gateway — usually UP
+ping -c2 -I "$WAN_IP" 1.1.1.1        # raw WAN to internet — DOWN during this outage
+```
+If the gateway pings but raw-WAN 1.1.1.1 fails, it's an **ISP-side outage** — the VPN can't fix it.
+
+**Solution:** The bundled `awg-watchdog.sh` includes **Gate 1b** (`check_raw_wan_public`): it probes public IPs over the raw WAN path (bypass table, forced by a WAN-source policy rule) and, when the gateway is up but raw WAN can't reach the internet, logs `ISP upstream/CGNAT outage` and **skips the restart** instead of thrashing. It auto-recovers the moment the ISP path returns. Beyond (optionally) asking the ISP to reset the connection, no action is needed. If these recur, ask the ISP for a public IP (off CGNAT).
+
 ---
 
 ## DNS Issues

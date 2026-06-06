@@ -1619,6 +1619,21 @@ journalctl --flush
 ls /var/log/journal/   # should now contain a machine-id directory
 ```
 
+### 21. VPN Thrashes During an ISP/CGNAT Upstream Outage
+
+**The Problem:** The watchdog's `check_wan` pings only the WAN gateway, and `check_connectivity` only tests the tunnel path (`-I awg0`). On **CGNAT** WANs (RFC 6598, `100.64.0.0/10`), the gateway is the ISP's edge and stays pingable even when the ISP's upstream path to the internet is down. So during an upstream/CGNAT outage, `check_wan` passes, the watchdog assumes a VPN fault, and tears down/rebuilds the tunnel repeatedly — uselessly — until the ISP recovers. Rebooting doesn't help (the WAN is fine locally; the break is upstream).
+
+**Detection:**
+```bash
+WAN_IP=$(ip -4 addr show dev eth0 | awk '/inet / {sub(/\/.*/,"",$2); print $2; exit}')
+GW=$(ip route show dev eth0 | awk '/default/{print $3; exit}')
+ping -c2 "$GW"                  # gateway — UP
+ping -c2 -I "$WAN_IP" 1.1.1.1   # raw WAN — DOWN = ISP upstream outage
+# Watchdog log loops: handshake stale → full restart → Tunnel restart FAILED
+```
+
+**Agent Strategy:** Use the bundled `awg-watchdog.sh`, which adds **Gate 1b** (`check_raw_wan_public`) after the WAN gateway check. It probes `PROBE_TARGETS` over the raw WAN path — source-bound to the WAN IP and routed via the bypass table with a `from <wan_ip> lookup <BYPASS_TABLE> priority RAW_WAN_RULE_PRIORITY` rule — so it tests real internet reachability past the gateway, not the tunnel. When the gateway is up but raw WAN is down, it logs `ISP upstream/CGNAT outage` and skips the restart. Set `WAN_IFACE` (uplink interface, commonly `eth0`) and keep `RAW_WAN_RULE_PRIORITY` (90) above your bypass-device rule priority (100). The watchdog auto-recovers when the ISP path returns; if these recur, escalate to the ISP or request a public IP (off CGNAT).
+
 ---
 
 ## Error Recovery
