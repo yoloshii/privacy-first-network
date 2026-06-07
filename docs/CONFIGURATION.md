@@ -838,6 +838,16 @@ ADGUARD_TARGET="101"       # container name / CTID / service name
 ADGUARD_IP="192.168.1.5"   # where AdGuard listens
 ```
 
+**Upstream-reachability gate.** A DNS failure does not always mean AdGuard is broken — during an upstream/ISP outage (especially a **CGNAT** WAN whose carrier session stalls on reconnect), AdGuard's encrypted-DNS upstream is unreachable and every probe fails, but restarting AdGuard cannot fix an upstream that is down; it only drops DNS and wipes the cache each cycle. Before restarting, the watchdog ICMP-probes the public internet over the host's default route; if nothing answers it logs the outage and **skips the restart** instead of thrashing. This is the AdGuard-host parallel of the VPN watchdog's raw-WAN gate (see *Recovery Behavior* above). Tunables:
+
+```bash
+UPSTREAM_PROBES="1.1.1.1 8.8.8.8 9.9.9.9"   # public anycast IPs (ICMP)
+UPSTREAM_MIN_PASS=1                          # skip restart only when ALL fail (WAN totally dead)
+UPSTREAM_PROBE_TIMEOUT=3                      # seconds per probe
+```
+
+Keep `UPSTREAM_MIN_PASS=1`: a genuine AdGuard hang plus one flaky probe target must still trigger the restart, so only a *total* upstream failure suppresses it. On a VPN-bypass host the probe egresses the raw WAN; on a VPN-routed host it egresses the tunnel — either way it answers "can this host reach the internet."
+
 ---
 
 ## Persistent Systemd Journal
@@ -855,17 +865,17 @@ Verify with `journalctl --list-boots` after one reboot — you should see at lea
 
 ---
 
-## Monthly Preventive Reboot
+## Monthly Preventive AdGuard Refresh
 
-Long uptimes (60+ days) on routers and AdGuard hosts accumulate degraded state. A monthly reboot during off-peak hours prevents this with a 2-3 minute outage. Use `scripts/monthly-reboot.cron`:
+Long uptimes (60+ days) correlate with the silent AdGuard hang (see *DNS Health Watchdog* above). A monthly preventive refresh pre-empts it. **Restart only AdGuard, not the whole host** — a full reboot drops the WAN, and on a **CGNAT/DS-Lite** WAN the carrier session can fail to re-establish on reconnect ("DHCP not picking back up"), turning an unattended 4am reboot into a multi-hour outage (this happened in the field: a ~7-hour WAN outage). Since the DNS health watchdog now handles the hang reactively, an AdGuard-only restart is the safe and sufficient monthly action. Use `scripts/monthly-adguard-refresh.cron`:
 
 ```bash
-sudo cp scripts/monthly-reboot.cron /etc/cron.d/monthly-reboot
-sudo chmod 644 /etc/cron.d/monthly-reboot
+sudo cp scripts/monthly-adguard-refresh.cron /etc/cron.d/monthly-adguard-refresh
+sudo chmod 644 /etc/cron.d/monthly-adguard-refresh
 sudo systemctl restart cron
 ```
 
-This fires the first Sunday of each month at 04:00 local time.
+This fires the first Sunday of each month at 04:00 local time and restarts only the AdGuard deployment (uncomment the line matching your docker/lxc/systemd deployment). A legacy full-reboot line is included but commented — **never enable it on a CGNAT/DS-Lite WAN**; if a full reboot is ever needed there, do it while awake.
 
 ---
 

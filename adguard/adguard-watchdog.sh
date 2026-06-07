@@ -23,7 +23,20 @@
 #
 # This watchdog catches that scenario in ~3 minutes (3 × 60s checks).
 #
-# Requires: dig (apt install dnsutils / dnf install bind-utils)
+# Upstream-reachability gate (don't fight an outage you can't win):
+#   A DNS failure does not always mean AdGuard is at fault. During an
+#   upstream/ISP outage — especially on a CGNAT WAN (RFC 6598, 100.64.0.0/10),
+#   where the carrier session can stall on reconnect — AdGuard's encrypted-DNS
+#   upstream becomes unreachable and every probe fails, but restarting AdGuard
+#   cannot fix an upstream that is down; it only drops DNS and wipes the cache
+#   on each cycle (one such outage drove ~65 futile restarts in the field).
+#   So before restarting, the watchdog ICMP-probes the public internet
+#   (UPSTREAM_PROBES) over this host's default route; if NOTHING answers it
+#   logs an upstream outage and skips the restart. It still restarts when the
+#   internet is up but DNS specifically is dead (the real hang above). This is
+#   the AdGuard-host parallel of the VPN watchdog's raw-WAN gate (Pitfall #21).
+#
+# Requires: dig (apt install dnsutils / dnf install bind-utils) and ping (iputils)
 #
 # Installation:
 #   1. Copy this script to /usr/local/bin/adguard-watchdog.sh
@@ -70,6 +83,17 @@ RESTART_SETTLE_TIME=30
 # Probe targets - need MIN_PROBES_PASS to succeed (geo-distributed, durable)
 PROBE_TARGETS="cloudflare.com google.com quad9.net"
 MIN_PROBES_PASS=2
+
+# Upstream-reachability gate (ICMP, no DNS) — public anycast IPs probed before any restart, to
+# distinguish a genuine AdGuard hang from an upstream/ISP/CGNAT (or VPN) outage. They egress via
+# this host's default route: on a VPN-bypass host that's the raw WAN; on a VPN-routed host it's the
+# tunnel. Either way, if NONE answer the public internet is down, so restarting AdGuard is futile
+# (it can't reach its upstream) and only wipes the cache — skip it. See check_upstream().
+UPSTREAM_PROBES="1.1.1.1 8.8.8.8 9.9.9.9"
+# Skip the restart only when ALL probes fail (WAN totally dead). Keep this at 1: a real AdGuard
+# hang plus one flaky probe target must NOT suppress the restart that fixes the network.
+UPSTREAM_MIN_PASS=1
+UPSTREAM_PROBE_TIMEOUT=3
 
 # Log file (must be on persistent storage)
 LOG="/var/log/adguard-watchdog.log"
@@ -132,6 +156,19 @@ check_dns() {
     [ "$success" -ge "$MIN_PROBES_PASS" ]
 }
 
+# Is the public internet reachable at all (independent of the DNS layer we're diagnosing)?
+# ICMP-only to UPSTREAM_PROBES via this host's default route. Returns true if >= UPSTREAM_MIN_PASS
+# answer; with MIN_PASS=1 it returns false only when the WAN is *totally* unreachable. Lets the main
+# loop skip a futile restart during an upstream/ISP/CGNAT outage (restarting AdGuard can't fix an
+# upstream that's down, and each restart drops DNS + wipes the cache for ~30-60s).
+check_upstream() {
+    local success=0 probe
+    for probe in $UPSTREAM_PROBES; do
+        ping -n -c 2 -W "$UPSTREAM_PROBE_TIMEOUT" "$probe" >/dev/null 2>&1 && success=$((success + 1))
+    done
+    [ "$success" -ge "$UPSTREAM_MIN_PASS" ]
+}
+
 do_restart() {
     log "Restarting AdGuard ($DEPLOYMENT_TYPE: $ADGUARD_TARGET)..."
     restart_target 2>&1 | head -5 | while read line; do log "restart: $line"; done
@@ -159,7 +196,7 @@ if ! command -v dig >/dev/null 2>&1; then
     exit 1
 fi
 
-log "AdGuard watchdog started — type=$DEPLOYMENT_TYPE target=$ADGUARD_TARGET probes=[$PROBE_TARGETS] threshold=${FAIL_THRESHOLD}x${CHECK_INTERVAL}s"
+log "AdGuard watchdog started — type=$DEPLOYMENT_TYPE target=$ADGUARD_TARGET probes=[$PROBE_TARGETS] threshold=${FAIL_THRESHOLD}x${CHECK_INTERVAL}s upstream-gate=[$UPSTREAM_PROBES] min=$UPSTREAM_MIN_PASS"
 
 fail_count=0
 consecutive_restart_fails=0
@@ -190,7 +227,18 @@ while true; do
         continue
     fi
 
+    # Threshold reached. Upstream-reachability gate (don't restart into an outage you can't fix):
+    # a DNS failure while the public internet is unreachable is an upstream/ISP/CGNAT (or VPN)
+    # outage, NOT an AdGuard hang — restarting can't fix it and only wipes the cache. Only restart
+    # when the internet is up but DNS is still failing (the genuine hang).
     fail_count=0
+    if ! check_upstream; then
+        log "DNS failing but upstream internet unreachable (${UPSTREAM_PROBES}) — ISP/CGNAT or VPN outage, not AdGuard. Skipping restart."
+        consecutive_restart_fails=0
+        sleep 300
+        continue
+    fi
+
     if do_restart; then
         consecutive_restart_fails=0
     else

@@ -1,0 +1,68 @@
+# =============================================================================
+# Monthly Preventive AdGuard Refresh - Cron File
+# =============================================================================
+#
+# Restarts the AdGuard deployment (NOT the whole host) on the first Sunday of
+# every month at 04:00 local time, to pre-empt the long-uptime AdGuard hang
+# (see "AdGuard Hangs Silently" in the pitfalls / docs/TROUBLESHOOTING.md).
+#
+# ⚠️  WHY AN ADGUARD RESTART, NOT A FULL REBOOT (hard-won lesson):
+#   A full host reboot drops the WAN link. On a CGNAT / carrier-grade-NAT or
+#   DS-Lite WAN (RFC 6598, 100.64.0.0/10), the carrier session can fail to
+#   re-establish on reconnect ("DHCP not picking back up") and leave you with
+#   NO internet until the modem is physically power-cycled — a multi-hour
+#   UNATTENDED outage if it fires at 4am. In the field, a monthly 4am full
+#   reboot triggered exactly this: a ~7-hour WAN outage. Meanwhile the only
+#   thing the reboot was preventing — the AdGuard hang — is now handled
+#   reactively by adguard/adguard-watchdog.sh. So the safe and sufficient
+#   monthly action is to restart ONLY AdGuard, which never touches the WAN.
+#
+#   ➜ Never schedule an UNATTENDED full reboot on a CGNAT/DS-Lite WAN. If a
+#     full reboot is ever needed there, do it while awake. A legacy full-reboot
+#     line is included (commented, at the bottom) for normal public-IP WANs
+#     only — but prefer the AdGuard-only restart even there.
+#
+# Pick the line matching your deployment. The active line below assumes LXC /
+# Proxmox; comment it out and uncomment the one for your deployment type.
+#
+# Installation:
+#   sudo cp scripts/monthly-adguard-refresh.cron /etc/cron.d/monthly-adguard-refresh
+#   sudo chmod 644 /etc/cron.d/monthly-adguard-refresh
+#   sudo chown root:root /etc/cron.d/monthly-adguard-refresh
+#   sudo systemctl restart cron     # or cronie, depending on distro
+#
+# Verify next firing:
+#   for w in 0 1 2 3 4; do
+#     D=$(date -d "next Sunday + $w weeks" '+%Y-%m-%d')
+#     DOM=$(date -d "next Sunday + $w weeks" '+%d')
+#     [ $DOM -le 7 ] && echo "$D — REFRESH" || echo "$D — skip"
+#   done
+#
+# To DISABLE temporarily: rm /etc/cron.d/monthly-adguard-refresh
+#
+# =============================================================================
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=""
+
+# Format: minute hour day-of-month month day-of-week user command
+# Cron runs the entry every Sunday at 04:00; the inline date check restricts
+# execution to the first Sunday (day-of-month 01-07).
+# Note: % must be backslash-escaped inside crontab commands.
+
+# --- AdGuard-only restart (SAFE — never drops the WAN). Uncomment ONE for your deployment: ---
+
+# LXC / Proxmox (set 101 to your CTID):
+0 4 * * 0 root [ "$(date +\%d)" -le 07 ] && /usr/bin/logger -t monthly-adguard-refresh "Monthly preventive AdGuard restart" && /usr/sbin/pct restart 101
+
+# Docker (set adguardhome to your container name):
+# 0 4 * * 0 root [ "$(date +\%d)" -le 07 ] && /usr/bin/logger -t monthly-adguard-refresh "Monthly preventive AdGuard restart" && /usr/bin/docker restart adguardhome
+
+# systemd (bare-metal AdGuard):
+# 0 4 * * 0 root [ "$(date +\%d)" -le 07 ] && /usr/bin/logger -t monthly-adguard-refresh "Monthly preventive AdGuard restart" && /usr/bin/systemctl restart AdGuardHome
+
+# --- Full host reboot (LEGACY / RISKY) ---
+# ⚠️ NEVER enable on a CGNAT/DS-Lite WAN (see header — can cause a multi-hour unattended outage).
+# Only consider on a normal public-IP WAN, and even then prefer the AdGuard-only line above.
+# 0 4 * * 0 root [ "$(date +\%d)" -le 07 ] && /usr/bin/logger -t monthly-reboot "Monthly preventive reboot triggered" && /sbin/reboot

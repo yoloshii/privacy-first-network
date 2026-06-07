@@ -304,7 +304,26 @@ dig @192.168.1.5 +tries=1 +time=5 cloudflare.com
    sudo systemctl restart systemd-journald
    ```
 
-4. **Consider a monthly preventive reboot** for the AdGuard host (`scripts/monthly-reboot.cron`). Long uptimes (60+ days) consistently correlate with this hang in field reports.
+4. **Consider a monthly preventive AdGuard refresh** (`scripts/monthly-adguard-refresh.cron`) — it restarts **only AdGuard** on the first Sunday each month (long uptimes of 60+ days correlate with this hang). Do NOT use an unattended *full host reboot* for this on a CGNAT/DS-Lite WAN: dropping the WAN can hang the carrier session for hours (see *AdGuard Keeps Restarting During an Outage* below, and pitfall #24).
+
+### AdGuard Keeps Restarting During an Outage (ISP/CGNAT Upstream)
+
+**Symptoms:**
+- No internet, and AdGuard is restarting in a loop with no recoveries
+- `adguard-watchdog.log` shows repeated `Restarting` with DNS never recovering
+- Common on **CGNAT** WANs (RFC 6598, `100.64.0.0/10`), where the carrier session stalls on reconnect
+
+**Cause:** During a total upstream/ISP outage, AdGuard's encrypted-DNS upstream is unreachable, so every DNS probe fails — but the failure is upstream, not AdGuard. A watchdog without an upstream check reads this as an AdGuard hang and hard-restarts the container every few minutes, pointlessly; each restart also drops DNS and wipes the cache.
+
+**Diagnosis:**
+```bash
+# From the AdGuard host — is the public internet reachable at all?
+ping -n -c2 1.1.1.1        # all packets lost during this outage = upstream down, not AdGuard
+tail /var/log/adguard-watchdog.log
+```
+If the host can't reach `1.1.1.1`, it's an upstream outage — restarting AdGuard can't fix it.
+
+**Solution:** The bundled `adguard/adguard-watchdog.sh` includes an **upstream-reachability gate** (`check_upstream`): before restarting it ICMP-probes `UPSTREAM_PROBES` over the host's default route and, when nothing is reachable, logs the outage and **skips the restart** (the log line reads `upstream internet unreachable ... Skipping restart`) instead of thrashing. It auto-recovers when the upstream returns. If these recur on CGNAT, ask the ISP to fix the reconnection (or request a public IP). See pitfall #23.
 
 ### Ads Still Showing
 

@@ -433,7 +433,7 @@ Use these example configs, substituting user-specific values:
 | AdGuard Home (generic) | `adguard/AdGuardHome.yaml.example` | ✓ | Any upstream DNS |
 | AdGuard Home (Mullvad) | `adguard/mullvad-AdGuardHome.yaml.example` | ✓ | Mullvad DoH |
 | Systemd service (AdGuard) | `scripts/adguardhome.service` | ✓ | Linux systemd |
-| **DNS health watchdog (script)** | `adguard/adguard-watchdog.sh` | ✓ | Detects + restarts hung AdGuard (docker/lxc/systemd) |
+| **DNS health watchdog (script)** | `adguard/adguard-watchdog.sh` | ✓ | Detects + restarts hung AdGuard (docker/lxc/systemd); upstream gate skips restart during ISP/CGNAT outage |
 | **DNS health watchdog (service)** | `adguard/adguard-watchdog.service` | ✓ | Systemd unit for the above |
 | BanIP config | `openwrt/banip/banip.example` | | Threat intelligence |
 | **Utility Scripts** | | | |
@@ -441,7 +441,7 @@ Use these example configs, substituting user-specific values:
 | IPv6 disable | `scripts/disable-ipv6.sh` | ✓ | Complete IPv6 hardening |
 | Config backup | `scripts/auto-backup.sh` | ✓ | Daily /etc/config backup |
 | Log rotation | `scripts/rotate-watchdog-log.sh` | ✓ | Watchdog log rotation (matches /root path) |
-| Monthly reboot cron | `scripts/monthly-reboot.cron` | ✓ | First-Sunday-of-month preventive reboot |
+| Monthly AdGuard refresh cron | `scripts/monthly-adguard-refresh.cron` | ✓ | First-Sunday AdGuard-only restart (safe on CGNAT; full reboot optional, commented) |
 | **Docker (Option C)** | | | |
 | Dockerfile | `docker/Dockerfile` | ✓ | Multi-stage, builds amneziawg-go |
 | Compose file | `docker/docker-compose.yml` | ✓ | macvlan + AdGuard sidecar |
@@ -1648,6 +1648,26 @@ curl -s https://api.mullvad.net/www/relays/all/ | grep -o '"<endpoint-ip>"'
 ```
 
 **Agent Strategy:** In `servers.conf`, give EVERY server its own public key in column 4 — never `-` for a failover server. The bundled `switch_server` rewrites both `Endpoint=` and `PublicKey=` from `servers.conf` using a `|` sed delimiter (base64 keys contain `/`, which would break a `/`-delimited sed and silently leave the wrong key). Spread the pool across a few cities for resilience, refresh it periodically against the provider's live list (a decommissioned entry just costs one wasted rebuild during a sweep), and save the file with LF line endings (a CRLF save corrupts the last column — the key). The client private key is account-wide, so only each server's endpoint + its own key are needed.
+
+### 23. AdGuard Watchdog Thrashes During an Upstream/ISP Outage
+
+**The Problem:** `adguard-watchdog.sh` restarts the AdGuard deployment after 3 failed DNS probes. Without an upstream check it cannot tell a genuine AdGuard hang from a total upstream/ISP outage — during which AdGuard's encrypted-DNS upstream is unreachable, so every probe fails anyway. On a **CGNAT** WAN (RFC 6598, `100.64.0.0/10`) the carrier session can stall on reconnect and take the upstream down for hours; the watchdog then hard-restarts the container every few minutes — uselessly — and each restart drops DNS and wipes the cache. (Field incident: a ~7h CGNAT outage drove ~65 futile restarts.) This is the AdGuard-host parallel of the VPN-watchdog thrash in #21.
+
+**Detection:**
+```bash
+# AdGuard restarting in a loop during a no-internet window:
+grep -E "Restarting|DNS check failed|upstream" /var/log/adguard-watchdog.log | tail
+# Is the public internet reachable from the AdGuard host at all?
+ping -n -c2 1.1.1.1    # all packets lost during the outage = upstream down, not AdGuard
+```
+
+**Agent Strategy:** Use the bundled `adguard/adguard-watchdog.sh`, which adds an **upstream-reachability gate** (`check_upstream`) before the restart. After the failure threshold it ICMP-probes `UPSTREAM_PROBES` (public anycast IPs) over the host's default route; if NONE answer, it logs an upstream/ISP/CGNAT outage and **skips the restart** (resets backoff, sleeps 5 min) instead of thrashing. It still restarts when the internet is up but DNS specifically is dead (the real hang in #18). Keep `UPSTREAM_MIN_PASS=1` — skip only when the WAN is *totally* dead, so a real hang plus one flaky probe target still triggers the restart. On a VPN-bypass host the probe egresses the raw WAN; on a VPN-routed host it egresses the tunnel — either is the correct "can this host reach the internet" signal. (The remaining edge — WAN up but the DoH provider specifically down — is bounded by the 3-restarts-then-5-min backoff.)
+
+### 24. Monthly Full Reboot Can Trigger a CGNAT WAN Outage
+
+**The Problem:** A monthly preventive *full host reboot* (a common "clear long-uptime drift" cron) drops the WAN link. On a **CGNAT/DS-Lite** WAN the carrier session can fail to re-establish on reconnect ("DHCP not picking back up") and stay down until the modem is physically power-cycled. Scheduled at 4am, that is a multi-hour **unattended** outage. Field incident: a first-Sunday 04:00 full reboot triggered a ~7h WAN outage — the WAN was healthy all night and failed within ~3 min of the reboot. "Monthly full reboot prevents drift" is therefore **unsafe guidance on a CGNAT WAN.**
+
+**Agent Strategy:** Do NOT schedule an unattended full reboot on a CGNAT/DS-Lite WAN. The one thing it was preventing — the AdGuard hang (#18) — is now handled reactively by `adguard-watchdog.sh`, so the safe monthly action is to restart **only AdGuard** (`scripts/monthly-adguard-refresh.cron` — `pct`/`docker`/`systemctl restart`), which never touches the WAN. If a full reboot is ever genuinely needed on such a link, do it **while awake** so you can power-cycle the modem if the carrier session stalls. A legacy full-reboot line remains (commented) in the cron template for normal public-IP WANs only.
 
 ---
 
